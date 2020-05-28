@@ -87,26 +87,24 @@ class CapEnv(gym.Env):
                     'NUM_BLUE_UGV3',
                     'NUM_RED_UGV3',
                     'NUM_BLUE_UGV4',
-                    'NUM_RED_UGV4',
-                    ],
+                    'NUM_RED_UGV4'],
                 'control': [
                     'CONTROL_ALL',
                     'MAX_STEP',
                     'RED_STEP',
                     'RED_DELAY',
-                    ],
+                    'BLUE_ADV_BIAS',
+                    'RED_ADV_BIAS'],
                 'communication': [
                     'COM_GROUND',
                     'COM_AIR',
                     'COM_DISTANCE',
-                    'COM_FREQUENCY'
-                    ],
+                    'COM_FREQUENCY'],
                 'memory': [
                     'INDIV_MEMORY',
                     'TEAM_MEMORY',
                     'RENDER_INDIV_MEMORY',
-                    'RENDER_TEAM_MEMORY'
-                    ],
+                    'RENDER_TEAM_MEMORY'],
                 'settings': [
                     'RL_SUGGESTIONS',
                     'STOCH_TRANSITIONS',
@@ -118,22 +116,19 @@ class CapEnv(gym.Env):
                     'RED_PARTIAL',
                     'BLUE_PARTIAL',
                     'MAP_MODE',
-                    'MAP_POOL_SIZE',
-                    ]
+                    'MAP_POOL_SIZE'],
                 'experiments': [
-                    'RENDER_ENV_ONLY',
-                    ]
-            }
+                    'RENDER_ENV_ONLY']}
         config_datatype = {
-                'elements': [int, int, int ,int, int,
-                        int, int,
-                        int, int,
-                        int, int],
-                'control': [bool, int, int, int, int, int],
+                'elements': [
+                    int, int, int ,int, int, int, int,
+                    int, int, int, int],
+                'control': [bool, int, int, int, int, int, int, int],
                 'communication': [bool, bool, int, int],
                 'memory': [str, str, bool, bool],
-                'settings': [bool, bool, float, str,
-                        bool, int, bool, bool, bool, str, int],
+                'settings': [
+                    bool, bool, float, str,
+                    bool, int, bool, bool, bool, str, int],
                 'experiments': [
                     bool],
             }
@@ -634,6 +629,8 @@ class CapEnv(gym.Env):
         att_strength = np.array([agent.get_advantage for agent in entity])[:,None]
         team_index = np.array([agent.team for agent in entity])
         alliance_matrix = team_index[:,None]==team_index[None,:]
+        att_strength[team_index==TEAM1_BACKGROUND,] += self.BLUE_ADV_BIAS
+        att_strength[team_index==TEAM2_BACKGROUND,] += self.RED_ADV_BIAS
 
         # Get distance between all agents
         x, y = np.array([agent.get_loc() for agent in entity]).T
@@ -644,7 +641,7 @@ class CapEnv(gym.Env):
         # Get influence matrix
         infl_matrix = np.less(distance, att_range)
         infl_matrix = infl_matrix * att_strength
-        friend_count = (infl_matrix*alliance_matrix).sum(axis=0)-1 # -1 to eliminate self
+        friend_count = (infl_matrix*alliance_matrix).sum(axis=0)-1 # -1 to not count self
         enemy_count = (infl_matrix*~alliance_matrix).sum(axis=0)
         mask = enemy_count == 0
 
