@@ -511,17 +511,21 @@ class CapEnv(gym.Env):
         # Run interaction
         target_agents = [agent for agent in self._agents if agent.isAlive and not agent.is_air]
         survive_list = [agent.isAlive for agent in target_agents]
-        new_status = self._interaction(target_agents)
-        num_blue_killed = 0
-        num_red_killed = 0
-        for idx, entity in enumerate(target_agents):
-            if survive_list[idx] and not new_status[idx]:
-                if entity.team == TEAM1_BACKGROUND:
-                    num_blue_killed += 1
-                elif entity.team == TEAM2_BACKGROUND:
-                    num_red_killed += 1
-        for status, entity in zip(new_status, target_agents):
-            entity.isAlive = status
+        if len(target_agents) != 0:
+            new_status = self._interaction(target_agents)
+            num_blue_killed = 0
+            num_red_killed = 0
+            for idx, entity in enumerate(target_agents):
+                if survive_list[idx] and not new_status[idx]:
+                    if entity.team == TEAM1_BACKGROUND:
+                        num_blue_killed += 1
+                    elif entity.team == TEAM2_BACKGROUND:
+                        num_red_killed += 1
+            for status, entity in zip(new_status, target_agents):
+                entity.isAlive = status
+        else:
+            num_blue_killed = 0
+            num_red_killed = 0
 
         # Check win and lose conditions
         has_alive_entity = False
