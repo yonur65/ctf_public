@@ -174,3 +174,6 @@ Valid Arguments:
 ## Acknowledgement
 
 ## License
+
+This project is licensed under the terms of the University of Illinois/NCSA Open Source license.
+
