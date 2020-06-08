@@ -1,9 +1,9 @@
-Copyright (c) 2019 Tran Research Group.
-All rights reserved.
+Copyright (c) 2019 Tran Research Group. All rights reserved.
 
-Developed by: Tran Research Group
+<pre>
+Developed by: Seung Hyun Kim, Tran Research Group
               University of Illinois at Urbana-Champaign
-              <URL FOR DEVELOPMENT GROUP/INSTITUTION>
+</pre>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal with

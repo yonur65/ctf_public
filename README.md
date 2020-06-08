@@ -25,6 +25,23 @@ If the package is installed using source code, following packages are required:
 
 * Gym might require additional packages depending on OS.
 
+## Publications and Submissions
+
+Please use this bibtex if you want to cite this environment package in your publications:
+
+```
+@misc{gym-cap,
+    author = {Seung Hyun Kim, Neale van Stralen, Tran Research Group},
+    title = {Gridworld Capture the Flag Environment},
+    year = {2019},
+    url = {\url{https://github.com/raide-project/ctf_public}},
+}
+```
+
+- [Evaluating Adaptation Performance of Hierarchical Deep ReinforcementLearning]() (ICRA 2020)
+    - [Demonstration Video]()
+    - [Presentation Video]()
+
 ## Preparation
 
 Run the example code [(demo run)](demo/test.py) to test if the package is installed correctly.
@@ -52,16 +69,14 @@ The example of custom policy can be found in [(custom policy)](demo/demo_policy.
 
 The environment is mostly fixed with the default configuration parameters, but some parameters are possible to be modified.
 When the environment method `env.reset()` is called, the environment is initialized as same as the previous configuration.
-By passing `config_path` argument, prescribed parameters could be modified.
+Prescribed parameters can be modified by passing `config_path=custom_config.ini` argument.
 
-cap_test.py
 ``` py
 observation = env.reset(config_path='custom_config.ini')
 ```
 
-Here is the example of config file.
+Here is the example of custom configuration file `custom_config.ini`.
 
-custom_config.ini
 ``` py
 # Controllable Variables
 
@@ -74,33 +89,34 @@ NUM_RED_UAV = 2             # number of air red agent
 
 [control]
 MAX_STEP = 150              # maximum number of steps in each game
+BLUE_ADV_BIAS = 0           # team blue advantage in the interaction
+RED_ADV_BIAS = 0            # team red advantage in the interaction
 
 [memory]
-                            # [None, fog]
 TEAM_MEMORY = None          # if set to fog, team observation includes previously visited static environment
-RENDER_TEAM_MEMORY = False  # if set to true, the team memory will be rendered
+RENDER_TEAM_MEMORY = False  # on/off: render team memory
 
 [settings]
-STOCH_TRANSITIONS = False   # switch drift
-STOCH_TRANSITIONS_EPS = 0.1 # drift rate
-STOCH_ATTACK = True         # switch stochastic interaction between agents
-STOCH_ATTACK_BIAS = 1       # territorial advantage in stochastic interaction
-STOCH_ZONES = False         # randomize map generation. (if custom_board is give, this parameter is ignored)
-BLUE_PARTIAL = True         # switch partial observation for blue
-RED_PARTIAL = True          # switch partial observation for red
+STOCH_TRANSITIONS = False   # on/off: stochastic transition
+STOCH_TRANSITIONS_EPS = 0.1 # stochastic transition rate
+STOCH_ATTACK = True         # on/off: stochastic interaction
+STOCH_ATTACK_BIAS = 1       # territorial advantage in the stochastic interaction
+STOCH_ZONES = False         # on/off: randomize map generation. (if custom_board is give, this parameter is ignored)
+BLUE_PARTIAL = True         # on/off: partial observation for team blue
+RED_PARTIAL = True          # on/off: partial observation for team red
 ```
 
 ### Custom Map
 
 The environment can be re-initialized to custom board by passing the `.txt` file.
-Any board terrain and number of agents will be ignored.
+If customized board is given, prescribed number of agents and terrain information will be ignored.
 
-cap_test.py
+The path of the customized board can be given as
 ```py
 observation = env.reset(custom_board='test_maps/board2.txt')
 ```
 
-test_map/board2.txt
+The example of the custom board can be found in `demo/test_map` directory.
 ```py
 0 0 2 4 1 4 1 1 1
 2 2 8 8 4 1 1 1 1
@@ -114,6 +130,21 @@ test_map/board2.txt
 ```
 
 * board elements are separated by space.
+
+```
+# Element ID
+TEAM1_BACKGROUND = 0
+TEAM2_BACKGROUND = 1
+TEAM1_UGV = 2
+TEAM1_UAV = 3
+TEAM2_UGV = 4
+TEAM2_UAV = 5
+TEAM1_FLAG = 6
+TEAM2_FLAG = 7
+OBSTACLE = 8
+```
+
+* The background of the agents is set to team background.
 
 ## Advanced Features
 
@@ -175,5 +206,5 @@ Valid Arguments:
 
 ## License
 
-This project is licensed under the terms of the University of Illinois/NCSA Open Source license.
+This project is licensed under the terms of the [University of Illinois/NCSA Open Source License](./LICENSE.md).
 
