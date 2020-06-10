@@ -1,3 +1,5 @@
+![Travis CI status](https://travis-ci.org/raide-project/ctf_public.svg?branch=Release)
+
 # Capture the Flag Gridworld Environment (gym-cap)
 
 This gridworld environment is specifically designed to simulate the multi-agent adversarial environment.
