@@ -16,7 +16,7 @@ from gym.utils import seeding
 import numpy as np
 
 from .agent import *
-from .create_map import gen_random_map, custom_map
+from .create_map import Map
 from .const import *
 
 """
@@ -56,6 +56,7 @@ class CapEnv(gym.Env):
         self._blue_trajectory = []
         self._red_trajectory = []
 
+        self.map_maker = Map()
         self.reset(map_size, mode=mode, **kwargs)
 
 
@@ -204,10 +205,10 @@ class CapEnv(gym.Env):
                     (TEAM1_UGV3, TEAM2_UGV3): (self.NUM_BLUE_UGV3, self.NUM_RED_UGV3),
                     (TEAM1_UGV4, TEAM2_UGV4): (self.NUM_BLUE_UGV4, self.NUM_RED_UGV4)
                 }
-
-            self._env, self._static_map, agent_locs = gen_random_map('map',
-                    map_size, rand_zones=self.STOCH_ZONES, np_random=self.np_random, map_obj=map_obj)
-            self.map_size = map_size
+            self.map_maker.set_objects(map_obj)
+            self.map_maker.generate_random_map(map_size, rand_zones=self.STOCH_ZONES, np_random=self.np_random)
+        elif custom_board == 'reuse':
+            pass
         else:
             # Read map from existing file
             if type(custom_board) is str:
@@ -216,10 +217,13 @@ class CapEnv(gym.Env):
                 board = custom_board
             else:
                 raise AttributeError("Provided board must be either path(str) or matrix(np array).")
-            self._env, self._static_map, map_obj, agent_locs = custom_map(board)
-            self.NUM_BLUE, self.NUM_BLUE_UAV, self.NUM_BLUE_UGV2, self.NUM_BLUE_UGV3, self.NUM_BLUE_UGV4 = map_obj[TEAM1_BACKGROUND]
-            self.NUM_RED, self.NUM_RED_UAV, self.NUM_RED_UGV2, self.NUM_RED_UGV3, self.NUM_RED_UGV4 = map_obj[TEAM2_BACKGROUND]
-            self.map_size = tuple(self._static_map.shape)
+            object_count = self.map_maker.custom_map(board)
+            self.NUM_BLUE, self.NUM_BLUE_UAV, self.NUM_BLUE_UGV2, self.NUM_BLUE_UGV3, self.NUM_BLUE_UGV4 = object_count[TEAM1_BACKGROUND]
+            self.NUM_RED, self.NUM_RED_UAV, self.NUM_RED_UGV2, self.NUM_RED_UGV3, self.NUM_RED_UGV4 = object_count[TEAM2_BACKGROUND]
+        self._env = self.map_maker.get_board
+        self._static_map = self.map_maker.get_static_board
+        self.map_size = self.map_maker.get_shape
+        agent_locs = self.map_maker.get_agent_locs
 
         h, w = self.map_size
         Y, X = np.ogrid[:2*h, :2*w]
@@ -262,6 +266,8 @@ class CapEnv(gym.Env):
         self.blue_flag_captured = False
         self.red_eliminated = False
         self.blue_eliminated = False
+        self.blue_point = 0.0
+        self.red_point = 0.0
 
         # Necessary for human mode
         self.first = True
@@ -386,8 +392,6 @@ class CapEnv(gym.Env):
 
         self.run_step += 1
         indiv_action_space = len(self.ACTION)
-        blue_point = 0.0
-        red_point = 0.0
 
         if self.CONTROL_ALL:
             assert self.RED_STEP == 1
@@ -509,33 +513,37 @@ class CapEnv(gym.Env):
                     agent.update_memory()
         
         # Run interaction
-        target_agents = [agent for agent in self._agents if agent.isAlive and not agent.is_air]
-        survive_list = [agent.isAlive for agent in target_agents]
-        if len(target_agents) != 0:
+        target_agents, revive_agents = [], []
+        for agent in self._agents:
+            if agent.isAlive and not agent.is_air:
+                target_agents.append(agent)
+            else:
+                revive_agents.append(agent)
+                if self.mode == 'continue':
+                    agent.revive()
+        num_blue_killed = 0
+        num_red_killed = 0
+        if len(target_agents) > 0:
             new_status = self._interaction(target_agents)
-            num_blue_killed = 0
-            num_red_killed = 0
             for idx, entity in enumerate(target_agents):
-                if survive_list[idx] and not new_status[idx]:
+                if new_status[idx] == False: # Agent is killed during the interaction
                     if entity.team == TEAM1_BACKGROUND:
                         num_blue_killed += 1
                     elif entity.team == TEAM2_BACKGROUND:
                         num_red_killed += 1
+            # Change status
             for status, entity in zip(new_status, target_agents):
                 entity.isAlive = status
-        else:
-            num_blue_killed = 0
-            num_red_killed = 0
 
         # Check win and lose conditions
         has_alive_entity = False
-        for i in self._team_red:
-            if i.isAlive and not i.is_air:
+        for agent in self._team_red:
+            if agent.isAlive and not agent.is_air:
                 has_alive_entity = True
-                locx, locy = i.get_loc()
+                locx, locy = agent.get_loc()
                 if self._static_map[locx][locy] == TEAM1_FLAG:  # TEAM 1 == BLUE
                     self.blue_flag_captured = True
-                    red_point += 1.0
+                    self.red_point += 1.0
                     if self.mode == 'continue': # Regenerate
                         self._static_map[locx][locy] = TEAM1_BACKGROUND
                         self._env[locx][locy][2] = 0
@@ -544,6 +552,7 @@ class CapEnv(gym.Env):
                         newloc = coords[np.random.choice(len(coords))]
                         self._static_map[newloc[0]][newloc[1]] = TEAM1_FLAG
                         self._env[newloc[0]][newloc[1]][2] = REPRESENT[TEAM1_FLAG]
+                        agent.revive()
                     else:
                         self.red_win = True
                     
@@ -553,13 +562,13 @@ class CapEnv(gym.Env):
             self.red_eliminated = True
 
         has_alive_entity = False
-        for i in self._team_blue:
-            if i.isAlive and not i.is_air:
+        for agent in self._team_blue:
+            if agent.isAlive and not agent.is_air:
                 has_alive_entity = True
-                locx, locy = i.get_loc()
+                locx, locy = agent.get_loc()
                 if self._static_map[locx][locy] == TEAM2_FLAG:
                     self.red_flag_captured = True
-                    blue_point += 1.0
+                    self.blue_point += 1.0
                     if self.mode == 'continue': # Regenerate
                         self._static_map[locx][locy] = TEAM2_BACKGROUND
                         self._env[locx][locy][2] = 0
@@ -568,6 +577,7 @@ class CapEnv(gym.Env):
                         newloc = coords[np.random.choice(len(coords))]
                         self._static_map[newloc[0]][newloc[1]] = TEAM2_FLAG
                         self._env[newloc[0]][newloc[1]][2] = REPRESENT[TEAM2_FLAG]
+                        agent.revive()
                     else:
                         self.blue_win = True
                     
@@ -575,17 +585,23 @@ class CapEnv(gym.Env):
             self.red_win = True
             self.blue_eliminated = True
 
-        #self.is_done = self.red_win or self.blue_win or self.run_step > self.MAX_STEP
-        if self.run_step >= self.MAX_STEP:
-            self.is_done = True
-            if blue_point > red_point:
+        if self.mode == 'continue':
+            if self.run_step >= self.MAX_STEP:
+                self.is_done = True
+                if self.blue_point > self.red_point:
+                    self.blue_win = True
+                elif self.blue_point < self.red_point:
+                    self.red_win = True
+        elif self.mode == 'sandbox':
+            if self.run_step >= self.MAX_STEP:
+                self.is_done = True
                 self.blue_win = True
-            elif blue_point < red_point:
-                self.red_win = True
+        else:
+            self.is_done = self.red_win or self.blue_win or self.run_step > self.MAX_STEP
 
         # Calculate Reward
         #reward, red_reward = self._create_reward(num_blue_killed, num_red_killed, mode='instant')
-        reward, red_reward = blue_point-red_point-0.001, red_point-blue_point-0.001
+        reward, red_reward = self.blue_point-self.red_point, self.red_point-self.blue_point
 
         # Pass internal info
         info = {

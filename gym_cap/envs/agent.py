@@ -24,6 +24,7 @@ class Agent:
         """
         self.isAlive = True
         self.x, self.y = loc
+        self._initial_loc = loc
         self.static_map = static_map
 
         self.team = team_number
@@ -50,6 +51,10 @@ class Agent:
         ## Special Features
         self.visible = True
         self.clocking = False  # Hide with the move 0
+
+    def revive(self):
+        self.isAlive = True
+        self.x, self.y = self._initial_loc
 
     def move(self, action, env, static_map):
         """
