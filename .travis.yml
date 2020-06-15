@@ -5,10 +5,13 @@ python:
   - "3.8" # Currently developing python
 
 # command to install dependencies
+before_install:
+  - python --version
+  - pip install -U pytest
 install:
   - pip install .
 
 # command to run tests
 script:
   python demo/test.py
-  #- pytest
+  pytest tests/test_step.py
