@@ -13,5 +13,5 @@ install:
 
 # command to run tests
 script:
-  python demo/test.py
-  pytest tests/test_step.py
+  - python demo/test.py
+  - pytest tests/test_step.py
