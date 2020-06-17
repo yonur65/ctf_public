@@ -119,7 +119,9 @@ class CapEnv(gym.Env):
                     'MAP_MODE',
                     'MAP_POOL_SIZE'],
                 'experiments': [
-                    'RENDER_ENV_ONLY']}
+                    'RENDER_ENV_ONLY',
+                    'SAVE_BOARD_RGB',
+                    'SILENCE_RENDER']}
         config_datatype = {
                 'elements': [
                     int, int, int ,int, int, int, int,
@@ -131,7 +133,7 @@ class CapEnv(gym.Env):
                     bool, bool, float, str,
                     bool, int, bool, bool, bool, str, int],
                 'experiments': [
-                    bool],
+                    bool, bool, bool],
             }
 
         if config_path is None and self.config_path is not None:
@@ -257,6 +259,7 @@ class CapEnv(gym.Env):
         # INITIALIZE TRAJECTORY (DEBUG)
         self._blue_trajectory = []
         self._red_trajectory = []
+        self._saved_board_rgb = []
 
         self._create_observation_mask()
 
@@ -386,7 +389,8 @@ class CapEnv(gym.Env):
                     'blue_trajectory': self._blue_trajectory,
                     'red_trajectory': self._red_trajectory,
                     'static_map': self._static_map,
-                    'red_reward': 0
+                    'red_reward': 0,
+                    'saved_board_rgb': self._saved_board_rgb
                 }
             return self.get_obs_blue, 0, self.is_done, info
 
@@ -603,12 +607,17 @@ class CapEnv(gym.Env):
         #reward, red_reward = self._create_reward(num_blue_killed, num_red_killed, mode='instant')
         reward, red_reward = self.blue_point-self.red_point, self.red_point-self.blue_point
 
+        # Debug
+        if self.SAVE_BOARD_RGB:
+            self._saved_board_rgb.append(self.get_full_state_rgb)
+
         # Pass internal info
         info = {
                 'blue_trajectory': self._blue_trajectory,
                 'red_trajectory': self._red_trajectory,
                 'static_map': self._static_map,
-                'red_reward': red_reward
+                'red_reward': red_reward,
+                'saved_board_rgb': self._saved_board_rgb
             }
 
         return self.get_obs_blue, reward, self.is_done, info
@@ -864,7 +873,10 @@ class CapEnv(gym.Env):
             self._agent_render(self.get_full_state,
                             [5, 10+SCREEN_H//2], [SCREEN_W//2-10, SCREEN_H//2-10])
 
-        return self.viewer.render(return_rgb_array = mode=='rgb_array')
+        if self.SILENCE_RENDER:
+            return self.viewer.get_array()
+        else:
+            return self.viewer.render(return_rgb_array = mode=='rgb_array')
 
     def _env_render(self, image, rend_loc, rend_size):
         map_h, map_w = image.shape
