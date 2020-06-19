@@ -268,6 +268,7 @@ class CapEnv(gym.Env):
         self.red_eliminated = False
         self.blue_eliminated = False
 
+
         # Necessary for human mode
         self.first = True
         self.run_step = 0  # Number of step of current episode
@@ -514,7 +515,7 @@ class CapEnv(gym.Env):
                 has_alive_entity = True
                 locx, locy = i.get_loc()
                 if self._static_map[locx][locy] == TEAM1_FLAG:  # TEAM 1 == BLUE
-                    #self.red_win = True
+                    self.red_win = True
                     self.blue_flag_captured = True
                     red_point += 1.0
                     if self.mode == 'continue': # Regenerate
@@ -528,9 +529,10 @@ class CapEnv(gym.Env):
 
         # TODO Change last condition for multi agent model
         if not has_alive_entity and self.mode != "sandbox" and self.mode != "human_blue":
-            self.blue_win = True
+            # self.blue_win = True
+            if not self.red_eliminated:
+                blue_point += 0.25
             self.red_eliminated = True
-            blue_point += 0.5
 
         has_alive_entity = False
         for i in self._team_blue:
@@ -538,7 +540,7 @@ class CapEnv(gym.Env):
                 has_alive_entity = True
                 locx, locy = i.get_loc()
                 if self._static_map[locx][locy] == TEAM2_FLAG:
-                    #self.blue_win = True
+                    self.blue_win = True
                     self.red_flag_captured = True
                     blue_point += 1.0
                     if self.mode == 'continue': # Regenerate
@@ -557,11 +559,11 @@ class CapEnv(gym.Env):
             red_point += 0.5
 
         isDone = self.red_win or self.blue_win or self.run_step > self.MAX_STEP
-        if self.run_step > self.MAX_STEP:
-            if blue_point > red_point:
-                self.blue_win = True
-            elif blue_point < red_point:
-                self.red_win = True
+        # if self.run_step > self.MAX_STEP:
+            # if blue_point > red_point:
+            #     self.blue_win = True
+            # elif blue_point < red_point:
+            #     self.red_win = True
 
         # Calculate Reward
         #reward, red_reward = self._create_reward(num_blue_killed, num_red_killed, mode='instant')
