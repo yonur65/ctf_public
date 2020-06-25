@@ -2,6 +2,7 @@ import gym
 import gym_cap
 
 from gym_cap.envs.cap_env import *
+from gym_cap.envs import agent
 import gym_cap.heuristic as policy
 
 from pytest import raises
@@ -219,3 +220,18 @@ class TestStep:
         env.NUM_RED_UGV4 = 0
         env.reset(policy_blue=policy.Random(), policy_red=policy.Random())
         env.step()
+
+    # interaction testing
+
+    def test_interaction_target_agents(self):
+        " Test that environment variables for target_agents component of step "
+        " function are appropriate "
+        env.step()
+        agent.isAlive = True
+        agent.is_air = False
+        target_agents = [agent for agent in env._agents if agent.isAlive and not agent.is_air]
+        new_status = env._interaction(target_agents)
+        for status, entity in zip(new_status, target_agents):
+            assert entity.isAlive == status
+
+    # flag conditions testing
