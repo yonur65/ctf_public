@@ -41,6 +41,7 @@ class CapEnv(gym.Env):
         """
         self.seed()
         self.viewer = None
+        self.mode = mode
 
         # Default Configuration
         config_path = pkg_resources.resource_filename(__name__, 'default.ini')
@@ -57,6 +58,10 @@ class CapEnv(gym.Env):
         self._red_trajectory = []
 
         self.map_maker = Map()
+
+        # FLAG Configuration
+        self._FLAG_SANDBOX = False
+
         self.reset(map_size, mode=mode, **kwargs)
 
 
@@ -121,7 +126,10 @@ class CapEnv(gym.Env):
                 'experiments': [
                     'RENDER_ENV_ONLY',
                     'SAVE_BOARD_RGB',
-                    'SILENCE_RENDER']}
+                    'SILENCE_RENDER',
+                    'RESPAWN_FLAG',
+                    'RESPAWN_AGENT_DEAD',
+                    'RESPAWN_AGENT_AT_FLAG']}
         config_datatype = {
                 'elements': [
                     int, int, int ,int, int, int, int,
@@ -132,9 +140,7 @@ class CapEnv(gym.Env):
                 'settings': [
                     bool, bool, float, str,
                     bool, int, bool, bool, bool, str, int],
-                'experiments': [
-                    bool, bool, bool],
-            }
+                'experiments': [bool, bool, bool, bool, bool, bool]}
 
         if config_path is None and self.config_path is not None:
             return
@@ -244,8 +250,9 @@ class CapEnv(gym.Env):
         if self._policy_blue is not None:
             self._policy_blue.initiate(self._static_map, self._team_blue)
         if len(self._team_red) == 0:
-            self.mode = "sandbox"
+            self._FLAG_SANDBOX = True
         else:
+            self._FLAG_SANDBOX = False
             if policy_red is not None:
                 self._policy_red = policy_red
             if self._policy_red is not None:
@@ -269,8 +276,6 @@ class CapEnv(gym.Env):
         self.blue_flag_captured = False
         self.red_eliminated = False
         self.blue_eliminated = False
-        self.blue_point = 0.0
-        self.red_point = 0.0
 
         # Necessary for human mode
         self.first = True
@@ -422,7 +427,7 @@ class CapEnv(gym.Env):
 
 
             # Move team2
-            if self.mode == "sandbox":
+            if self._FLAG_SANDBOX:
                 move_list_red = []
             positions = []
             for idx, act in enumerate(move_list_red):
@@ -471,7 +476,7 @@ class CapEnv(gym.Env):
             self._blue_trajectory.append(positions)
 
             # Move team2
-            if self.mode != "sandbox" and self.run_step % self.RED_DELAY == 0:
+            if not self._FLAG_SANDBOX and self.run_step % self.RED_DELAY == 0:
                 for _ in range(self.RED_STEP):
                     try:
                         move_list_red = self._policy_red.gen_action(self._team_red, self.get_obs_red)
@@ -523,7 +528,7 @@ class CapEnv(gym.Env):
                 target_agents.append(agent)
             else:
                 revive_agents.append(agent)
-                if self.mode == 'continue':
+                if self.RESPAWN_AGENT_DEAD:
                     agent.revive()
         num_blue_killed = 0
         num_red_killed = 0
@@ -540,6 +545,7 @@ class CapEnv(gym.Env):
                 entity.isAlive = status
 
         # Check win and lose conditions
+        blue_point, red_point = 0.0, 0.0 
         has_alive_entity = False
         for agent in self._team_red:
             if agent.isAlive and not agent.is_air:
@@ -547,8 +553,8 @@ class CapEnv(gym.Env):
                 locx, locy = agent.get_loc()
                 if self._static_map[locx][locy] == TEAM1_FLAG:  # TEAM 1 == BLUE
                     self.blue_flag_captured = True
-                    self.red_point += 1.0
-                    if self.mode == 'continue': # Regenerate
+                    red_point += 1.0
+                    if self.RESPAWN_FLAG: # Regenerate flag
                         self._static_map[locx][locy] = TEAM1_BACKGROUND
                         self._env[locx][locy][2] = 0
                         candidate = np.logical_and(self._env[:,:,1]==REPRESENT[TEAM1_BACKGROUND], self._env[:,:,4]!=REPRESENT[TEAM1_UGV])
@@ -556,12 +562,13 @@ class CapEnv(gym.Env):
                         newloc = coords[np.random.choice(len(coords))]
                         self._static_map[newloc[0]][newloc[1]] = TEAM1_FLAG
                         self._env[newloc[0]][newloc[1]][2] = REPRESENT[TEAM1_FLAG]
-                        agent.revive()
+                        if self.RESPAWN_AGENT_AT_FLAG:
+                            agent.revive()
                     else:
                         self.red_win = True
                     
         # TODO Change last condition for multi agent model
-        if not has_alive_entity and self.mode != "sandbox" and self.mode != "human_blue":
+        if not has_alive_entity and not self._FLAG_SANDBOX and self.mode != "human_blue":
             self.blue_win = True
             self.red_eliminated = True
 
@@ -572,8 +579,8 @@ class CapEnv(gym.Env):
                 locx, locy = agent.get_loc()
                 if self._static_map[locx][locy] == TEAM2_FLAG:
                     self.red_flag_captured = True
-                    self.blue_point += 1.0
-                    if self.mode == 'continue': # Regenerate
+                    blue_point += 1.0
+                    if self.RESPAWN_FLAG: # Regenerate flag
                         self._static_map[locx][locy] = TEAM2_BACKGROUND
                         self._env[locx][locy][2] = 0
                         candidate = np.logical_and(self._env[:,:,1]==REPRESENT[TEAM2_BACKGROUND], self._env[:,:,4]!=REPRESENT[TEAM2_UGV])
@@ -581,7 +588,8 @@ class CapEnv(gym.Env):
                         newloc = coords[np.random.choice(len(coords))]
                         self._static_map[newloc[0]][newloc[1]] = TEAM2_FLAG
                         self._env[newloc[0]][newloc[1]][2] = REPRESENT[TEAM2_FLAG]
-                        agent.revive()
+                        if self.RESPAWN_AGENT_AT_FLAG:
+                            agent.revive()
                     else:
                         self.blue_win = True
                     
@@ -592,11 +600,11 @@ class CapEnv(gym.Env):
         if self.mode == 'continue':
             if self.run_step >= self.MAX_STEP:
                 self.is_done = True
-                if self.blue_point > self.red_point:
+                if blue_point > red_point:
                     self.blue_win = True
-                elif self.blue_point < self.red_point:
+                elif blue_point < red_point:
                     self.red_win = True
-        elif self.mode == 'sandbox':
+        elif self._FLAG_SANDBOX:
             if self.run_step >= self.MAX_STEP:
                 self.is_done = True
                 self.blue_win = True
@@ -605,7 +613,7 @@ class CapEnv(gym.Env):
 
         # Calculate Reward
         #reward, red_reward = self._create_reward(num_blue_killed, num_red_killed, mode='instant')
-        reward, red_reward = self.blue_point-self.red_point, self.red_point-self.blue_point
+        reward, red_reward = blue_point-red_point, red_point-blue_point
 
         # Debug
         if self.SAVE_BOARD_RGB:
@@ -617,7 +625,8 @@ class CapEnv(gym.Env):
                 'red_trajectory': self._red_trajectory,
                 'static_map': self._static_map,
                 'red_reward': red_reward,
-                'saved_board_rgb': self._saved_board_rgb
+                'saved_board_rgb': self._saved_board_rgb,
+                'flag_sandbox': self._FLAG_SANDBOX
             }
 
         return self.get_obs_blue, reward, self.is_done, info
@@ -713,7 +722,7 @@ class CapEnv(gym.Env):
             if self.blue_win:
                 return 100
             reward = 0
-            if self.mode != 'sandbox':
+            if not self._FLAG_SANDBOX:
                 reward += 50.0 * (red_total - red_alive) / red_total
             reward -= (50.0 * (blue_total - blue_alive) / blue_total)
             return reward
