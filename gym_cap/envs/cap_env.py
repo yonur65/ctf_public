@@ -597,7 +597,7 @@ class CapEnv(gym.Env):
             self.red_win = True
             self.blue_eliminated = True
 
-        if self.mode == 'continue':
+        if self.RESPAWN_FLAG:
             if self.run_step >= self.MAX_STEP:
                 self.is_done = True
                 if blue_point > red_point:
