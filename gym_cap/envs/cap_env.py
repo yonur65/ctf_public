@@ -56,6 +56,7 @@ class CapEnv(gym.Env):
 
         self._blue_trajectory = []
         self._red_trajectory = []
+        self._rewards = []
 
         self.map_maker = Map()
 
@@ -126,6 +127,8 @@ class CapEnv(gym.Env):
                 'experiments': [
                     'RENDER_ENV_ONLY',
                     'SAVE_BOARD_RGB',
+                    'SAVE_BLUE_OBS',
+                    'SAVE_RED_OBS',
                     'SILENCE_RENDER',
                     'RESPAWN_FLAG',
                     'RESPAWN_AGENT_DEAD',
@@ -140,7 +143,7 @@ class CapEnv(gym.Env):
                 'settings': [
                     bool, bool, float, str,
                     bool, int, bool, bool, bool, str, int],
-                'experiments': [bool, bool, bool, bool, bool, bool]}
+                'experiments': [bool, bool, bool, bool, bool, bool, bool, bool]}
 
         if config_path is None and self.config_path is not None:
             return
@@ -266,7 +269,10 @@ class CapEnv(gym.Env):
         # INITIALIZE TRAJECTORY (DEBUG)
         self._blue_trajectory = []
         self._red_trajectory = []
+        self._rewards = []
         self._saved_board_rgb = []
+        self._saved_blue_obs= []
+        self._saved_red_obs = []
 
         self._create_observation_mask()
 
@@ -395,7 +401,11 @@ class CapEnv(gym.Env):
                     'red_trajectory': self._red_trajectory,
                     'static_map': self._static_map,
                     'red_reward': 0,
+                    'rewards': self._rewards,
                     'saved_board_rgb': self._saved_board_rgb
+                    'saved_blue_obs': self._saved_blue_obs,
+                    'saved_red_obs': self._saved_red_obs,
+                    'flag_sandbox': self._FLAG_SANDBOX
                 }
             return self.get_obs_blue, 0, self.is_done, info
 
@@ -616,8 +626,13 @@ class CapEnv(gym.Env):
         reward, red_reward = blue_point-red_point, red_point-blue_point
 
         # Debug
+        self._rewards.append(reward)
         if self.SAVE_BOARD_RGB:
             self._saved_board_rgb.append(self.get_full_state_rgb)
+        if self.SAVE_BLUE_OBS:
+            self._saved_blue_obs.append(self.get_obs_blue)
+        if self.SAVE_RED_OBS:
+            self._saved_red_obs.append(self.get_obs_red)
 
         # Pass internal info
         info = {
@@ -625,7 +640,10 @@ class CapEnv(gym.Env):
                 'red_trajectory': self._red_trajectory,
                 'static_map': self._static_map,
                 'red_reward': red_reward,
+                'rewards': self._rewards,
                 'saved_board_rgb': self._saved_board_rgb,
+                'saved_blue_obs': self._saved_blue_obs,
+                'saved_red_obs': self._saved_red_obs,
                 'flag_sandbox': self._FLAG_SANDBOX
             }
 
