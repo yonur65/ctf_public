@@ -32,6 +32,7 @@ NP_SEED = None
 
 # Element ID
 SUGGESTION = -5
+KNOWN = -4
 FOG = -3
 BLACK = -2
 UNKNOWN = -1
@@ -60,6 +61,7 @@ TEAM2_UGV4 = 21
 NUM_CHANNEL = 6
 CHANNEL = {
         UNKNOWN: 0,
+        KNOWN: 0,
         FOG: 0,
         DEAD: 0,
         TEAM1_BACKGROUND: 1,
@@ -82,6 +84,7 @@ CHANNEL = {
 # Represented constant
 REPRESENT = {
         UNKNOWN: 1,
+        KNOWN: 0,
         DEAD: 0,
         FOG: -1,
         OBSTACLE: 1,

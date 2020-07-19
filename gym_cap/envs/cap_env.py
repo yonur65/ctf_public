@@ -147,6 +147,7 @@ class CapEnv(gym.Env):
 
         if config_path is None and self.config_path is not None:
             return
+        assert os.path.isfile(config_path), 'Configuration file does not exist'
         self.config_path = config_path
         config = configparser.ConfigParser()
         config.read(config_path)
@@ -402,10 +403,10 @@ class CapEnv(gym.Env):
                     'static_map': self._static_map,
                     'red_reward': 0,
                     'rewards': self._rewards,
-                    'saved_board_rgb': self._saved_board_rgb
+                    'saved_board_rgb': self._saved_board_rgb,
                     'saved_blue_obs': self._saved_blue_obs,
                     'saved_red_obs': self._saved_red_obs,
-                    'flag_sandbox': self._FLAG_SANDBOX
+                    'flag_sandbox': self._FLAG_SANDBOX,
                 }
             return self.get_obs_blue, 0, self.is_done, info
 
@@ -644,7 +645,7 @@ class CapEnv(gym.Env):
                 'saved_board_rgb': self._saved_board_rgb,
                 'saved_blue_obs': self._saved_blue_obs,
                 'saved_red_obs': self._saved_red_obs,
-                'flag_sandbox': self._FLAG_SANDBOX
+                'flag_sandbox': self._FLAG_SANDBOX,
             }
 
         return self.get_obs_blue, reward, self.is_done, info
@@ -1066,8 +1067,10 @@ class CapEnv(gym.Env):
                     view[self.blue_memory, ch] = 0
                 for ch in immediate_channel:
                     view[self._blue_mask, ch] = 0
-                view[self._blue_mask, mask_channel] = mask_represent
-                view[self.blue_memory, fog_channel] = fog_represent
+                unknown_channel = CHANNEL[UNKNOWN]
+                view[:,:,unknown_channel] = REPRESENT[UNKNOWN]
+                view[~self.blue_memory, fog_channel] = fog_represent
+                view[~self._blue_mask, mask_channel] = REPRESENT[KNOWN]
             else:
                 mask_channel = CHANNEL[UNKNOWN]
                 mask_represent = REPRESENT[UNKNOWN]
@@ -1100,8 +1103,10 @@ class CapEnv(gym.Env):
                     view[self.red_memory, ch] = 0
                 for ch in immediate_channel:
                     view[self._red_mask, ch] = 0
-                view[self._red_mask, mask_channel] = mask_represent
-                view[self.red_memory, fog_channel] = fog_represent
+                unknown_channel = CHANNEL[UNKNOWN]
+                view[:,:,unknown_channel] = REPRESENT[UNKNOWN]
+                view[~self.red_memory, fog_channel] = fog_represent
+                view[~self._red_mask, mask_channel] = REPRESENT[KNOWN]
             else:
                 mask_channel = CHANNEL[UNKNOWN]
                 mask_represent = REPRESENT[UNKNOWN]
