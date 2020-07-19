@@ -9,7 +9,7 @@ env = gym.make("cap-v0")
 # Reset the environment and select the policies for each of the team
 observation = env.reset(
         map_size=20,
-        config_path='base_settings.ini',
+        config_path='demo/base_settings.ini',
         policy_blue=policy.Defense(),
         policy_red=policy.Random()
     )
