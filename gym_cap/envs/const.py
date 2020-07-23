@@ -112,7 +112,9 @@ LEVEL_GROUP = {
 
 # Rendering
 COLOR_DICT = {
+        KNOWN : (255, 255, 255),
         UNKNOWN : (200, 200, 200),
+        FOG : (200, 200, 200),
         TEAM1_BACKGROUND : (0, 0, 120),
         TEAM2_BACKGROUND : (120, 0, 0),
         TEAM1_UGV : (0, 0, 255),

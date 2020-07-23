@@ -45,7 +45,7 @@ class CapEnv(gym.Env):
 
         # Default Configuration
         config_path = pkg_resources.resource_filename(__name__, 'default.ini')
-        self.config_path = config_path
+        self.config_path = config_path # Load default parameters
         self._parse_config(config_path)
 
         self.blue_memory = np.zeros((map_size, map_size), dtype=bool)
@@ -146,6 +146,7 @@ class CapEnv(gym.Env):
                 'experiments': [bool, bool, bool, bool, bool, bool, bool, bool]}
 
         if config_path is None and self.config_path is not None:
+            # Maintain previous configuration
             return
         assert os.path.isfile(config_path), 'Configuration file does not exist'
         self.config_path = config_path
@@ -272,8 +273,8 @@ class CapEnv(gym.Env):
         self._red_trajectory = []
         self._rewards = []
         self._saved_board_rgb = []
-        self._saved_blue_obs= []
-        self._saved_red_obs = []
+        self._saved_blue_obs_rgb = []
+        self._saved_red_obs_rgb = []
 
         self._create_observation_mask()
 
@@ -404,8 +405,8 @@ class CapEnv(gym.Env):
                     'red_reward': 0,
                     'rewards': self._rewards,
                     'saved_board_rgb': self._saved_board_rgb,
-                    'saved_blue_obs': self._saved_blue_obs,
-                    'saved_red_obs': self._saved_red_obs,
+                    'saved_blue_obs_rgb': self._saved_blue_obs_rgb,
+                    'saved_red_obs_rgb': self._saved_red_obs_rgb,
                     'flag_sandbox': self._FLAG_SANDBOX,
                 }
             return self.get_obs_blue, 0, self.is_done, info
@@ -631,9 +632,9 @@ class CapEnv(gym.Env):
         if self.SAVE_BOARD_RGB:
             self._saved_board_rgb.append(self.get_full_state_rgb)
         if self.SAVE_BLUE_OBS:
-            self._saved_blue_obs.append(self.get_obs_blue)
+            self._saved_blue_obs_rgb.append(self.get_obs_blue_rgb)
         if self.SAVE_RED_OBS:
-            self._saved_red_obs.append(self.get_obs_red)
+            self._saved_red_obs_rgb.append(self.get_obs_red_rgb)
 
         # Pass internal info
         info = {
@@ -643,8 +644,8 @@ class CapEnv(gym.Env):
                 'red_reward': red_reward,
                 'rewards': self._rewards,
                 'saved_board_rgb': self._saved_board_rgb,
-                'saved_blue_obs': self._saved_blue_obs,
-                'saved_red_obs': self._saved_red_obs,
+                'saved_blue_obs_rgb': self._saved_blue_obs_rgb,
+                'saved_red_obs_rgb': self._saved_red_obs_rgb,
                 'flag_sandbox': self._FLAG_SANDBOX,
             }
 
@@ -787,6 +788,52 @@ class CapEnv(gym.Env):
 
             return blue_reward, red_reward
 
+    def quick_render(self, path):
+        import matplotlib.pyplot as plt
+        from matplotlib.animation import FuncAnimation
+
+        plt.tick_params(axis='both', which='both', bottom=0, top=0, labelbottom=0)
+
+        nrow = 1
+        ncol = self.SAVE_BOARD_RGB + self.SAVE_BLUE_OBS + self.SAVE_RED_OBS
+        if ncol == 0:
+            print('Warning: No saved information')
+            return
+
+        fig, axes = plt.subplots(nrow, ncol, sharey=True)
+        fig.set_tight_layout(True)
+        if ncol == 1:
+            if self.SAVE_BOARD_RGB:
+                images = self._saved_board_rgb
+            if self.SAVE_BLUE_OBS:
+                images = self._saved_blue_obs_rgb
+            if self.SAVE_RED_OBS:
+                images = self._saved_red_obs_rgb
+            num_images = len(images)
+            im = axes.imshow(images[0])
+            def update(i):
+                label = 'timestep {0}'.format(i)
+                im.set_data(images[i])
+                plt.title(label)
+                return axes
+        else:
+            images_binder = []
+            if self.SAVE_BOARD_RGB:
+                images_binder.append(self._saved_board_rgb)
+            if self.SAVE_BLUE_OBS:
+                images_binder.append(self._saved_blue_obs_rgb)
+            if self.SAVE_RED_OBS:
+                images_binder.append(self._saved_red_obs_rgb)
+            num_images = len(images_binder[0])
+            ims = [ax.imshow(image[0]) for ax, image in zip(axes, images_binder)]
+            def update(i):
+                label = 'timestep {0}'.format(i)
+                ims = [ax.imshow(image[i]) for ax, image in zip(axes, images_binder)]
+                plt.title(label)
+                return axes
+        anim = FuncAnimation(fig, update, frames=np.arange(num_images), interval=200)
+        anim.save(path, dpi=80, fps=4, writer='imagemagick')
+
     def render(self, mode='human'):
         """
         Renders the screen options="obs, env"
@@ -799,7 +846,6 @@ class CapEnv(gym.Env):
             Defines what will be rendered
         """
 
-        #if mode == "single":
         if self.RENDER_ENV_ONLY:
             SCREEN_W = 600
             SCREEN_H = 600
@@ -1013,25 +1059,25 @@ class CapEnv(gym.Env):
             board[loc] = entity.unit_type
         return board
 
+    def _env2rgb(self, env):
+        w, h, ch = env.shape
+        image = np.full(shape=[w, h, 3], fill_value=0, dtype=int)
+        for element in CHANNEL.keys():
+            if element == FOG:
+                #(TODO) fog representation in rgb
+                continue
+            channel = CHANNEL[element]
+            rep = REPRESENT[element]
+            image[env[:,:,channel]==rep] = np.array(COLOR_DICT[element])
+        return image
+
     @property
     def get_full_state(self, mask=None):
         return self._env_flat()
 
     @property
-    def get_full_state_channel(self):
-        return np.copy(self._env)
-
-    @property
     def get_full_state_rgb(self):
-        w, h, ch = self._env.shape
-        image = np.full(shape=[w, h, 3], fill_value=0, dtype=int)
-        for element in CHANNEL.keys():
-            if element == FOG:
-                continue
-            channel = CHANNEL[element]
-            rep = REPRESENT[element]
-            image[self._env[:,:,channel]==rep] = np.array(COLOR_DICT[element])
-        return image
+        return self._env2rgb(self._env)
 
     @property
     def get_team_blue(self):
@@ -1115,13 +1161,13 @@ class CapEnv(gym.Env):
                 view[self._red_mask, mask_channel] = mask_represent
 
         for entity in self._team_blue:
-            if entity.is_visible:
+            if not entity.is_visible:
                 x, y = entity.get_loc()
                 view[x, y, entity.channel] = 0
 
         # Change red's perspective same as blue
-        swap = set([CHANNEL[TEAM1_BACKGROUND], CHANNEL[TEAM1_UGV], CHANNEL[TEAM1_UAV], CHANNEL[TEAM1_FLAG],
-                CHANNEL[TEAM1_UGV2], CHANNEL[TEAM1_UGV3], CHANNEL[TEAM1_UGV4]])
+        swap = set([CHANNEL[TEAM1_BACKGROUND], CHANNEL[TEAM1_UGV], CHANNEL[TEAM1_UAV], CHANNEL[TEAM1_FLAG]])
+                #CHANNEL[TEAM1_UGV2], CHANNEL[TEAM1_UGV3], CHANNEL[TEAM1_UGV4]])
 
         for ch in swap:
             view[:,:,ch] *= -1
@@ -1135,6 +1181,14 @@ class CapEnv(gym.Env):
     @property
     def get_obs_red_render(self):
         return self._env_flat(self._red_mask)
+
+    @property
+    def get_obs_blue_rgb(self):
+        return self._env2rgb(self.get_obs_blue)
+    
+    @property
+    def get_obs_red_rgb(self):
+        return self._env2rgb(self.get_obs_red)
 
     @property
     def get_obs_grey(self):
