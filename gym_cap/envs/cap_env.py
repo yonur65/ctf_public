@@ -280,6 +280,8 @@ class CapEnv(gym.Env):
 
         self.blue_win = False
         self.red_win = False
+        self.blue_points = 0.0
+        self.red_points = 0.0
         self.red_flag_captured = False
         self.blue_flag_captured = False
         self.red_eliminated = False
@@ -612,9 +614,11 @@ class CapEnv(gym.Env):
         if self.RESPAWN_FLAG:
             if self.run_step >= self.MAX_STEP:
                 self.is_done = True
-                if blue_point > red_point:
+                if self.blue_points > self.red_points:
                     self.blue_win = True
-                elif blue_point < red_point:
+                    self.red_win = False
+                elif self.blue_points < self.red_points:
+                    self.blue_win = False
                     self.red_win = True
         elif self._FLAG_SANDBOX:
             if self.run_step >= self.MAX_STEP:
@@ -626,6 +630,8 @@ class CapEnv(gym.Env):
         # Calculate Reward
         #reward, red_reward = self._create_reward(num_blue_killed, num_red_killed, mode='instant')
         reward, red_reward = blue_point-red_point, red_point-blue_point
+        self.blue_points += blue_point
+        self.red_points += red_point
 
         # Debug
         self._rewards.append(reward)
@@ -716,77 +722,6 @@ class CapEnv(gym.Env):
         result[mask] = True
 
         return result
-
-    def _create_reward(self, num_blue_killed, num_red_killed, mode='dense'):
-        """
-        Range (-100, 100)
-
-        Parameters
-        ----------
-        self    : object
-            CapEnv object
-        """
-
-        assert mode in ['dense', 'flag', 'combat', 'defense', 'capture', 'instant']
-
-        red_alive = sum([entity.isAlive for entity in self._team_red if not entity.is_air])
-        blue_alive = sum([entity.isAlive for entity in self._team_blue if not entity.is_air])
-        red_total = len([entity for entity in self._team_red if not entity.is_air])
-        blue_total = len([entity for entity in self._team_blue if not entity.is_air])
-
-        if mode == 'dense':
-            # Dead enemy team gives .5/total units for each dead unit
-            # Only count ground unit
-            if self.red_win:
-                return -100
-            if self.blue_win:
-                return 100
-            reward = 0
-            if not self._FLAG_SANDBOX:
-                reward += 50.0 * (red_total - red_alive) / red_total
-            reward -= (50.0 * (blue_total - blue_alive) / blue_total)
-            return reward
-        elif mode == 'flag':
-            # Flag game reward
-            if self.red_flag_captured:
-                return 100
-            if self.blue_flag_captured:
-                return -100
-        elif mode == 'combat':
-            # Aggressive combat game. Elliminate enemy to win
-            return 100 * red_alive / red_total
-        elif mode == 'defense':
-            # Lose reward if flag is lost.
-            if self.blue_flag_captured:
-                return -100
-        elif mode == 'capture':
-            # Reward only by capturing (sparse)
-            if self.red_flag_captured:
-                return 100
-        elif mode == 'instant':
-            bias = 0
-
-            # DRAW
-            if self.red_flag_captured and self.blue_flag_captured:
-                return -1, -1
-            elif self.red_win and self.blue_win:
-                return -1, -1
-            elif self.run_step > self.MAX_STEP:
-                return -1, -1
-            
-            # TERMINATE
-            if self.red_win:
-                return -1, 1
-            elif self.blue_win:
-                return 1, -1
-
-            # INTERMEDIATE
-            diff = num_red_killed - num_blue_killed
-            lambd = 0.1
-            blue_reward = bias + diff * lambd
-            red_reward = bias + (-diff) * lambd
-
-            return blue_reward, red_reward
 
     def quick_render(self, path):
         import matplotlib.pyplot as plt
