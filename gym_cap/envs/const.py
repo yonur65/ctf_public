@@ -5,7 +5,7 @@ GRAY = 90
 UAV_STEP = 3
 UGV_STEP = 1
 UAV_RANGE = 4
-UGV_RANGE = 3
+UGV_RANGE = 4
 UAV_A_RANGE = 0
 UGV_A_RANGE = 2
 
@@ -132,4 +132,3 @@ COLOR_DICT = {
         TEAM1_UGV4 : (0,0,240),
         TEAM2_UGV4 : (240,0,0),
     }
-

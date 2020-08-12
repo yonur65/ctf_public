@@ -119,6 +119,8 @@ class CapEnv(gym.Env):
                     'BLUE_PARTIAL',
                     'MAP_MODE',
                     'MAP_POOL_SIZE',
+                    'AGENT_KILL',
+                    'FINAL_KILL'
                     ]
             }
         config_datatype = {
@@ -130,7 +132,7 @@ class CapEnv(gym.Env):
                 'communication': [bool, bool, int, float],
                 'memory': [str, str, bool, bool],
                 'settings': [bool, bool, float, str,
-                        bool, int, bool, bool, bool, str, int]
+                        bool, int, bool, bool, bool, str, int, float, float]
             }
 
         if config_path is None and self.config_path is not None:
@@ -503,8 +505,10 @@ class CapEnv(gym.Env):
             if survive_list[idx] and not new_status[idx]:
                 if entity.team == TEAM1_BACKGROUND:
                     num_blue_killed += 1
+                    red_point+= self.AGENT_KILL
                 elif entity.team == TEAM2_BACKGROUND:
                     num_red_killed += 1
+                    blue_point+= self.AGENT_KILL
         for status, entity in zip(new_status, target_agents):
             entity.isAlive = status
 
@@ -531,7 +535,7 @@ class CapEnv(gym.Env):
         if not has_alive_entity and self.mode != "sandbox" and self.mode != "human_blue":
             # self.blue_win = True
             if not self.red_eliminated:
-                blue_point += 0.25
+                blue_point += self.FINAL_KILL
             self.red_eliminated = True
 
         has_alive_entity = False
@@ -554,11 +558,10 @@ class CapEnv(gym.Env):
 
 
         if not has_alive_entity:
-            self.red_win = True
+            if not self.blue_eliminated:
+                red_point += self.FINAL_KILL
             self.blue_eliminated = True
-            red_point += 0.5
-
-        isDone = self.red_win or self.blue_win or self.run_step > self.MAX_STEP
+        isDone = self.red_win or self.blue_win or self.run_step > self.MAX_STEP or (self.blue_eliminated and self.red_eliminated)
         # if self.run_step > self.MAX_STEP:
             # if blue_point > red_point:
             #     self.blue_win = True
