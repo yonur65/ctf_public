@@ -31,6 +31,48 @@ class CapEnv(gym.Env):
     }
 
     ACTION = ["X", "N", "E", "S", "W"]
+    CHANNEL = {
+            "UNKNOWN": 0,
+            "FOG": 0,
+            "DEAD": 0,
+            "TEAM1_BACKGROUND": 1,
+            "TEAM2_BACKGROUND": 1,
+            "TEAM1_FLAG": 2,
+            "TEAM2_FLAG": 2,
+            "OBSTACLE": 3,
+            "TEAM1_UGV": 4,
+            "TEAM2_UGV": 4,
+            "TEAM1_UAV": 5,
+            "TEAM2_UAV": 5,
+            "TEAM1_UGV2": 4,
+            "TEAM2_UGV2": 4,
+            "TEAM1_UGV3": 4,
+            "TEAM2_UGV3": 4,
+            "TEAM1_UGV4": 4,
+            "TEAM2_UGV4": 4,
+       }
+
+    # Represented constant
+    REPRESENT = {
+            "UNKNOWN": 1,
+            "DEAD": 0,
+            "FOG": -1,
+            "OBSTACLE": 1,
+            "TEAM1_BACKGROUND": 1,
+            "TEAM2_BACKGROUND": -1,
+            "TEAM1_FLAG": 1,
+            "TEAM2_FLAG": -1,
+            "TEAM1_UGV": 1,
+            "TEAM2_UGV": -1,
+            "TEAM1_UAV": 1,
+            "TEAM2_UAV": -1,
+            "TEAM1_UGV2": 1,
+            "TEAM2_UGV2": -1,
+            "TEAM1_UGV3": 1,
+            "TEAM2_UGV3": -1,
+            "TEAM1_UGV4": 1,
+            "TEAM2_UGV4": -1,
+        }
 
     def __init__(self, map_size=20, mode="random", **kwargs):
         """
