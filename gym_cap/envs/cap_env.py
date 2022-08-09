@@ -8,6 +8,7 @@ import pkg_resources
 import random
 import sys
 import traceback
+from typing import Dict, List, Optional, Sequence, SupportsFloat, Tuple, Type, Union
 
 import gym
 from gym import spaces
@@ -1225,14 +1226,19 @@ class Board(spaces.Space):
         self.dtype = np.dtype(dtype)
 
         if shape is None:
-            self.shape = (20, 20, NUM_CHANNEL)
+            self._shape = (20, 20, NUM_CHANNEL)
         else:
             assert shape[2] == NUM_CHANNEL
-            self.shape = tuple(shape)
+            self._shape = tuple(shape)
         super(Board, self).__init__(self.shape, self.dtype)
 
     def __repr__(self):
-        return "Board" + str(self.shape)
+        return "Board" + str(self._shape)
+
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        """Has stricter type than gym.Space - never None."""
+        return self._shape
 
     def sample(self):
         map_obj = [NUM_BLUE, NUM_BLUE_UAV, NUM_RED, NUM_RED_UAV, NUM_GRAY]
