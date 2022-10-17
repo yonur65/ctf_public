@@ -443,7 +443,7 @@ class CapEnv(gym.Env):
             # Move team1
             positions = []
             for idx, act in enumerate(move_list_blue):
-                if self.STOCH_TRANSITIONS and self.np_random.rand() < self.STOCH_TRANSITIONS_EPS:
+                if self.STOCH_TRANSITIONS and self.np_random.random() < self.STOCH_TRANSITIONS_EPS:
                     if self._policy_blue is not None and not self._policy_blue._random_transition_safe:
                         act = 0
                     else:
@@ -458,7 +458,7 @@ class CapEnv(gym.Env):
                 move_list_red = []
             positions = []
             for idx, act in enumerate(move_list_red):
-                if self.STOCH_TRANSITIONS and self.np_random.rand() < self.STOCH_TRANSITIONS_EPS:
+                if self.STOCH_TRANSITIONS and self.np_random.random() < self.STOCH_TRANSITIONS_EPS:
                     if self._policy_red is not None and not self._policy_red._random_transition_safe:
                         act = 0
                     else:
@@ -493,7 +493,7 @@ class CapEnv(gym.Env):
 
             positions = []
             for idx, act in enumerate(move_list_blue):
-                if self.STOCH_TRANSITIONS and self.np_random.rand() < self.STOCH_TRANSITIONS_EPS:
+                if self.STOCH_TRANSITIONS and self.np_random.random() < self.STOCH_TRANSITIONS_EPS:
                     if self._policy_blue is not None and not self._policy_blue._random_transition_safe:
                         act = 0
                     else:
@@ -514,7 +514,7 @@ class CapEnv(gym.Env):
 
                     positions = []
                     for idx, act in enumerate(move_list_red):
-                        if self.STOCH_TRANSITIONS and self.np_random.rand() < self.STOCH_TRANSITIONS_EPS:
+                        if self.STOCH_TRANSITIONS and self.np_random.random() < self.STOCH_TRANSITIONS_EPS:
                             if self._policy_red is not None and not self._policy_red._random_transition_safe:
                                 act = 0
                             else:
@@ -799,7 +799,7 @@ class CapEnv(gym.Env):
 
         # Interaction
         if self.STOCH_ATTACK:
-            result = self.np_random.rand(*friend_count.shape) < friend_count / (friend_count + enemy_count)
+            result = self.np_random.random(friend_count.shape) < friend_count / (friend_count + enemy_count)
         else:
             result = friend_count > enemy_count
         result[mask] = True
@@ -894,9 +894,17 @@ class CapEnv(gym.Env):
             SCREEN_H = 600
 
             if self.viewer is None:
-                from gym.envs.classic_control import rendering
-                self.viewer = rendering.Viewer(SCREEN_W, SCREEN_H)
-                self.viewer.set_bounds(0, SCREEN_W, 0, SCREEN_H)
+                import pygame
+                from pygame import gfxdraw
+                if mode=="human":
+                    self.viewer = pygame.display.set_mode(
+                        (SCREEN_W, SCREEN_H)
+                    )
+                else:
+                    self.viewer = pygame.Surface(
+                    (SCREEN_W, SCREEN_H)
+                    )
+                # self.viewer.set_bounds(0, SCREEN_W, 0, SCREEN_H)
 
             self.viewer.draw_polygon([(0, 0), (SCREEN_W, 0), (SCREEN_W, SCREEN_H), (0, SCREEN_H)], color=(0, 0, 0))
 
@@ -953,11 +961,24 @@ class CapEnv(gym.Env):
             SCREEN_H = 600
 
             if self.viewer is None:
-                from gym.envs.classic_control import rendering
-                self.viewer = rendering.Viewer(SCREEN_W, SCREEN_H)
-                self.viewer.set_bounds(0, SCREEN_W, 0, SCREEN_H)
+                import pygame
+                from pygame import gfxdraw
+                if mode=="human":
+                    self.viewer = pygame.display.set_mode(
+                        (SCREEN_W, SCREEN_H)
+                    )
+                else:
+                    self.viewer = pygame.Surface(
+                    (SCREEN_W, SCREEN_H)
+                    )
+                # self.viewer.set_bounds(0, SCREEN_W, 0, SCREEN_H)
+            self.surf = pygame.Surface((SCREEN_W, SCREEN_H))
+            self.surf.fill((255, 255, 255))
 
-            self.viewer.draw_polygon([(0, 0), (SCREEN_W, 0), (SCREEN_W, SCREEN_H), (0, SCREEN_H)], color=(0, 0, 0))
+            pygame.display.set_caption("Capture the Flag")
+
+            gfxdraw.filled_polygon(self.surf, [(0, 0), (SCREEN_W, 0), (SCREEN_W, SCREEN_H), (0, SCREEN_H)],  (0,0,0))
+
 
             self._env_render(self._static_map,
                             [5, 10], [SCREEN_W//2-10, SCREEN_H//2-10])
@@ -972,39 +993,54 @@ class CapEnv(gym.Env):
             self._agent_render(self.get_full_state,
                             [5, 10+SCREEN_H//2], [SCREEN_W//2-10, SCREEN_H//2-10])
 
-        return self.viewer.render(return_rgb_array = mode=='rgb_array')
+
+            if mode=="human":
+                self.viewer.blit(self.surf, (0, 0))
+                pygame.event.pump()
+                pygame.display.flip()
+
+            return np.array(pygame.surfarray.pixels3d(self.viewer))
 
     def _env_render(self, image, rend_loc, rend_size):
+        import pygame
+        from pygame import gfxdraw
         map_h, map_w = image.shape
-        tile = min(rend_size[0]/map_w, rend_size[1]/map_h)
+        tile = int(min(rend_size[0]/map_w, rend_size[1]/map_h))
 
         for y in range(map_h):
             for x in range(map_w):
                 locx, locy = rend_loc
                 locx += x * tile
                 locy += y * tile
-                cur_color = np.divide(COLOR_DICT[image[y][x]], 255.0)
-                self.viewer.draw_polygon([
+                cur_color = COLOR_DICT[image[y][x]]
+                gfxdraw.filled_polygon(self.surf,[
                     (locx, locy),
                     (locx + tile, locy),
                     (locx + tile, locy + tile),
-                    (locx, locy + tile)], color=cur_color)
+                    (locx, locy + tile)], cur_color)
+                gfxdraw.aapolygon(self.surf,[
+                    (locx, locy),
+                    (locx + tile, locy),
+                    (locx + tile, locy + tile),
+                    (locx, locy + tile)], cur_color)
 
                 if image[y][x] == TEAM1_UAV or image[y][x] == TEAM2_UAV:
-                    self.viewer.draw_polyline([
-                        (locx, locy),
-                        (locx + tile, locy + tile)],
-                        color=(0,0,0), linewidth=2)
-                    self.viewer.draw_polyline([
-                        (locx + tile, locy),
-                        (locx, locy + tile)],
-                        color=(0,0,0), linewidth=2)#col * tile, row * tile
+                    gfxdraw.line(self.surf,
+                        locx, locy,
+                        locx + tile, locy + tile,
+                        (0,0,0))
+                    gfxdraw.line(self.surf,
+                        locx + tile, locy,
+                        locx, locy + tile,
+                        (0,0,0))#col * tile, row * tile
 
     def _agent_render(self, image, rend_loc, rend_size, agents=None):
+        import pygame
+        from pygame import gfxdraw
         if agents is None:
             agents = self._team_blue + self._team_red
         map_h, map_w = image.shape
-        tile = min(rend_size[0]/map_w, rend_size[1]/map_h)
+        tile = int(min(rend_size[0]/map_w, rend_size[1]/map_h))
 
         for entity in agents:
             if not entity.isAlive: continue
@@ -1013,54 +1049,27 @@ class CapEnv(gym.Env):
             locx += x * tile
             locy += y * tile
             cur_color = COLOR_DICT[entity.unit_type]
-            cur_color = np.divide(cur_color, 255.0)
-            self.viewer.draw_polygon([
+            gfxdraw.filled_polygon(self.surf,[
                 (locx, locy),
                 (locx + tile, locy),
                 (locx + tile, locy + tile),
-                (locx, locy + tile)], color=cur_color)
+                (locx, locy + tile)], cur_color)
 
-            if type(entity) == AerialVehicle:
-                self.viewer.draw_polyline([
-                    (locx, locy),
-                    (locx + tile, locy + tile)],
-                    color=(0,0,0), linewidth=2)
-                self.viewer.draw_polyline([
-                    (locx + tile, locy),
-                    (locx, locy + tile)],
-                    color=(0,0,0), linewidth=2)#col * tile, row * tile
-            if type(entity) == GroundVehicle_Tank:
-                self.viewer.draw_polyline([
-                    (locx, locy),
-                    (locx + tile//2, locy + tile)],
-                    color=(0,0,0), linewidth=3)
-                self.viewer.draw_polyline([
-                    (locx + tile//2, locy + tile),
-                    (locx + tile, locy)],
-                    color=(0,0,0), linewidth=3)
-            if type(entity) == GroundVehicle_Scout:
-                self.viewer.draw_polyline([
-                    (locx, locy),
-                    (locx + tile//2, locy + tile)],
-                    color=(0,0,0), linewidth=3)
-                self.viewer.draw_polyline([
-                    (locx + tile//2, locy + tile),
-                    (locx + tile, locy)],
-                    color=(0,0,0), linewidth=3)
-            if type(entity) == GroundVehicle_Clocking:
-                self.viewer.draw_polyline([
-                    (locx, locy),
-                    (locx + tile//2, locy + tile)],
-                    color=(0,0,0), linewidth=3)
-                self.viewer.draw_polyline([
-                    (locx + tile//2, locy + tile),
-                    (locx + tile, locy)],
-                    color=(0,0,0), linewidth=3)
+            if type(entity) in [AerialVehicle,GroundVehicle_Tank,GroundVehicle_Scout,GroundVehicle_Clocking]:
+                gfxdraw.line(self.surf,
+                    locx, locy,
+                    locx + tile, locy + tile,
+                    (0,0,0))
+                gfxdraw.line(self.surf,
+                    locx + tile, locy,
+                    locx, locy + tile,
+                    (0,0,0))#col * tile, row * tile
+
 
             if entity.marker is not None:
                 ratio = 0.6
                 color = np.divide(entity.marker, 255.0)
-                self.viewer.draw_polygon([
+                gfxdraw.filled_polygon(self.surf,[
                     (locx + tile * ratio, locy + tile * ratio),
                     (locx + tile, locy + tile * ratio),
                     (locx + tile, locy + tile),

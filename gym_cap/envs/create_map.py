@@ -39,7 +39,7 @@ def gen_random_map(name, dim, in_seed=None, rand_zones=False, np_random=None,
     # ASSERTION
     assert map_obj is not None
 
-    # INITIALIZE THE SEED 
+    # INITIALIZE THE SEED
     if np_random is None:
         np_random = np.random
     if in_seed is not None:
@@ -61,15 +61,15 @@ def gen_random_map(name, dim, in_seed=None, rand_zones=False, np_random=None,
         zone = np.ones(dim, dtype=int)  # 1 for blue, -1 for red, 0 for obstacle
         static_map = np.zeros(dim, dtype=int)
         if rand_zones:
-            sx, sy = np_random.randint(min(dim)//2, 4*min(dim)//5, [2])
-            lx, ly = np_random.randint(0, min(dim) - max(sx,sy)-1, [2])
+            sx, sy = np_random.integers(min(dim)//2, 4*min(dim)//5, [2])
+            lx, ly = np_random.integers(0, min(dim) - max(sx,sy)-1, [2])
             zone[lx:lx+sx, ly:ly+sy] = -1
             static_map[lx:lx+sx, ly:ly+sy] = TEAM2_BACKGROUND
         else:
             zone[:,0:dim[1]//2] = -1
             static_map[:,0:dim[1]//2] = TEAM2_BACKGROUND
             #zone = np.rot90(zone)
-        if 0.5 < np_random.rand():
+        if 0.5 < np_random.uniform():
             zone = -zone  # Reverse
             static_map = -static_map+1  # TODO: not a safe method to reverse static_map
 
@@ -77,8 +77,8 @@ def gen_random_map(name, dim, in_seed=None, rand_zones=False, np_random=None,
         obst = np.zeros(dim, dtype=int)
         num_obst = int(np.sqrt(min(dim)))
         for i in range(num_obst):
-            lx, ly = np_random.randint(0, min(dim), [2])
-            sx, sy = np_random.randint(0, min(dim)//5, [2]) + 1
+            lx, ly = np_random.integers(0, min(dim), [2])
+            sx, sy = np_random.integers(0, min(dim)//5, [2]) + 1
             zone[lx-sx:lx+sx, ly-sy:ly+sy] = 0
             obst[lx-sx:lx+sx, ly-sy:ly+sy] = REPRESENT[OBSTACLE]
             static_map[lx-sx:lx+sx, ly-sy:ly+sy] = OBSTACLE
@@ -116,7 +116,7 @@ def gen_random_map(name, dim, in_seed=None, rand_zones=False, np_random=None,
     new_map[:,:,1] = zone
     new_map[:,:,2] = flag
     new_map[:,:,3] = obst
-    
+
     ## Agents
     agent_locs = {}
 
@@ -127,7 +127,7 @@ def gen_random_map(name, dim, in_seed=None, rand_zones=False, np_random=None,
             (TEAM1_UGV4, TEAM2_UGV4)]
     for k in keys:
         nb, nr = map_obj[k]
-        
+
         channel = CHANNEL[k[0]]
         coord, blue_coord = blue_coord[:nb], blue_coord[nb:]
         new_map[coord[:,0], coord[:,1], channel] = REPRESENT[k[0]]
@@ -146,7 +146,7 @@ def custom_map(new_map):
         Outputs static_map when new_map is given as input.
         Addtionally the number of agents will also be
         counted
-    
+
     Parameters
     ----------
     new_map        : numpy array
@@ -156,9 +156,9 @@ def custom_map(new_map):
         ugv_2   : red UGV
         uav_2   : red UAV
         gray    : gray units
-        
+
     """
-    
+
     # build object count array
     element_count = dict(zip(*np.unique(new_map, return_counts=True)))
 
@@ -191,4 +191,3 @@ def custom_map(new_map):
             nd_map[loc, CHANNEL[team]] = REPRESENT[team]
 
     return nd_map, static_map, obj_dict, agent_locs
-
