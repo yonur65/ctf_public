@@ -960,9 +960,9 @@ class CapEnv(gym.Env):
             SCREEN_W = 600
             SCREEN_H = 600
 
+            import pygame
+            from pygame import gfxdraw
             if self.viewer is None:
-                import pygame
-                from pygame import gfxdraw
                 if mode=="human":
                     self.viewer = pygame.display.set_mode(
                         (SCREEN_W, SCREEN_H)
