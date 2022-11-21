@@ -18,10 +18,10 @@ from .policy import Policy
 
 class Patrol(Policy):
     """Policy generator class for CtF env.
-    
+
     This class can be used as a template for policy generator.
     Designed to summon an AI logic for the team of units.
-    
+
     Methods:
         gen_action: Required method to generate a list of actions.
         patrol: Private method to control a single unit.
@@ -30,11 +30,12 @@ class Patrol(Policy):
     def __init__(self):
         super().__init__()
         self._random_transition_safe = False  # Experiment variable that indicate random transition is not safe
-    
+
     def initiate(self, free_map, agent_list):
         self.team = agent_list[0].team
         other_team = const.TEAM2_BACKGROUND if self.team==const.TEAM1_BACKGROUND else const.TEAM1_BACKGROUND
-        self.free_map = free_map 
+        self.free_map = free_map
+        self.map_shape = free_map.shape
 
         # Scan and list boarder location
         boarder = []
@@ -56,7 +57,7 @@ class Patrol(Policy):
         while len(boarder) > 0:
             visited = []
             queue = []
-            queue.append(boarder.pop()) 
+            queue.append(boarder.pop())
             while len(queue) > 0:
                 n = queue.pop()
                 visited.append(tuple(n))
@@ -84,27 +85,27 @@ class Patrol(Policy):
             route = self.route_astar(agent.get_loc(), target)
             if route is None:
                 self.route.append(None)
-            else: 
+            else:
                 self.route.append(route)
 
         self.grouped_boarder = grouped_boarder
         self.heading_right = [True] * len(agent_list) #: Attr to track directions.
-        
+
     def gen_action(self, agent_list, observation):
         """Action generation method.
-        
-        This is a required method that generates list of actions corresponding 
-        to the list of units. 
-        
+
+        This is a required method that generates list of actions corresponding
+        to the list of units.
+
         Args:
             agent_list (list): list of all friendly units.
             observation (np.array): 2d map of partially observable map.
-            
+
         Returns:
             action_out (list): list of integers as actions selected for team.
         """
         action_out = []
-        
+
         for idx, agent in enumerate(agent_list):
             if not agent.isAlive:
                 action_out.append(0)
@@ -128,7 +129,7 @@ class Patrol(Policy):
 
     def patrol(self, loc, boarder, obs):
         x,y = loc
-        
+
         #patrol along the boarder.
         action = [0]
         for a in range(1,5):

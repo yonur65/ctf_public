@@ -36,6 +36,8 @@ class Policy:
 
         """
         self.free_map = None
+
+        self.map_shape = [10,10]
         self.agent_list = None
 
         self._random_transition_safe = True
