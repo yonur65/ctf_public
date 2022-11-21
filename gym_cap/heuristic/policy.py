@@ -15,42 +15,42 @@ import gym_cap.envs.const as const
 
 class Policy:
     """Policy generator class for CtF env.
-    
+
     This class can be used as a template for policy generator.
     Designed to summon an AI logic for the team of units.
     Provides basic methods for building policy.
-    
+
     Must-have Methods:
         initiate: Required method that runs everytime episode is initialized.
         gen_action: Required method to generate a list of actions.
     """
-    
+
     def __init__(self):
         """Constuctor for policy class.
-        
+
         This class can be used as a template for policy generator.
 
         Define:
             agent_list (list): list of all friendly units.
             free_map (np.array): 2d map of static environment (optional).
-        
+
         """
         self.free_map = None
         self.agent_list = None
 
-        self._random_transition_safe = True 
-        
+        self._random_transition_safe = True
+
     def gen_action(self, agent_list, observation):
         """Action generation method.
-        
-        This is a required method that generates list of actions corresponding 
-        to the list of units. 
-        
+
+        This is a required method that generates list of actions corresponding
+        to the list of units.
+
         Args:
             agent_list (list): list of all friendly units.
             observation (np.array): 2d map of partially observable map.
             free_map (np.array): 2d map of static environment (optional).
-            
+
         Returns:
             action_out (list): list of integers as actions selected for team.
         """
@@ -58,16 +58,17 @@ class Policy:
 
     def initiate(self, free_map, agent_list):
         """Initiation method
-        
+
         This method is called when the environment reset
         Any initialization or initiation for each game should be included here
         The new static-map and agent list is given as parameter
-        
+
         Args:
             agent_list (list): list of all friendly units.
             free_map (np.array): 2d map of static environment (optional).
         """
         self.free_map = free_map
+        self.map_shape = free_map.shape
         self.agent_list = agent_list
 
     """
@@ -80,7 +81,7 @@ class Policy:
         can_move    : Check if the move is possible from the position
         distance    : Calculate distance between two point
         get_flag_loc: Otuput coordinate of enemy flag
-        route_astar : Outputs route(coordinate) from start to end 
+        route_astar : Outputs route(coordinate) from start to end
 
     """
     def move_toward(self, start, target):
@@ -90,7 +91,7 @@ class Policy:
         Due to the grid-environment, it does not move diagonally.
 
         Args:
-            start (tuple): coordinate of staring location 
+            start (tuple): coordinate of staring location
             target (tuple): coordinate of targeting location
 
         Return:
@@ -134,9 +135,9 @@ class Policy:
             bool
         """
         nx, ny = self.next_loc(position, move)
-        if nx < 0 or nx >= 20:
+        if nx < 0 or nx >= self.map_shape[0]:
             return False
-        elif ny < 0 or ny >= 20:
+        elif ny < 0 or ny >= self.map_shape[1]:
             return False
         return self.free_map[nx][ny] != const.OBSTACLE
 
@@ -180,7 +181,7 @@ class Policy:
             loc = loc[0]
 
         return loc
-         
+
     def route_astar(self, start, goal):
         """
         Finds route from start to goal.
