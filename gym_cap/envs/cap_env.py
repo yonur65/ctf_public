@@ -193,7 +193,7 @@ class CapEnv(gym.Env):
                     if hasattr(self, option):
                         continue
                     else:
-                        raise KeyError('Configuration import fails: double check whether all config variables are included')
+                        raise KeyError('Configuration import fails: double check whether all config variables are included in {}'.format(config_path))
                 if datatype is bool:
                     value = config.getboolean(section, option)
                 elif datatype is int:
