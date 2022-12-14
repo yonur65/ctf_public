@@ -164,6 +164,8 @@ class CapEnv(gym.Env):
                     'MAP_POOL_SIZE',
                     'AGENT_KILL',
                     'FINAL_KILL'
+                    'BLUE_FLAG_VAL'
+                    'RED_FLAG_VAL'
                     ]
             }
         config_datatype = {
@@ -564,7 +566,7 @@ class CapEnv(gym.Env):
                 if self._static_map[locx][locy] == TEAM1_FLAG:  # TEAM 1 == BLUE
                     self.red_win = True
                     self.blue_flag_captured = True
-                    red_point += 1.0
+                    red_point += self.RED_FLAG_VAL
                     if self.mode == 'continue': # Regenerate
                         self._static_map[locx][locy] = TEAM1_BACKGROUND
                         self._env[locx][locy][2] = 0
@@ -589,7 +591,7 @@ class CapEnv(gym.Env):
                 if self._static_map[locx][locy] == TEAM2_FLAG:
                     self.blue_win = True
                     self.red_flag_captured = True
-                    blue_point += 1.0
+                    blue_point += self.BLUE_FLAG_VAL
                     if self.mode == 'continue': # Regenerate
                         self._static_map[locx][locy] = TEAM2_BACKGROUND
                         self._env[locx][locy][2] = 0
