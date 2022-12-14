@@ -177,7 +177,7 @@ class CapEnv(gym.Env):
                 'communication': [bool, bool, int, float],
                 'memory': [str, str, bool, bool],
                 'settings': [bool, bool, float, str,
-                        bool, int, bool, bool, bool, str, int, float, float]
+                        bool, int, bool, bool, bool, str, int, float, float, float, float]
             }
 
         if config_path is None and self.config_path is not None:
