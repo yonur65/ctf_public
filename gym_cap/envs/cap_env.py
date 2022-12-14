@@ -163,9 +163,9 @@ class CapEnv(gym.Env):
                     'MAP_MODE',
                     'MAP_POOL_SIZE',
                     'AGENT_KILL',
-                    'FINAL_KILL'
-                    'BLUE_FLAG_VAL'
-                    'RED_FLAG_VAL'
+                    'FINAL_KILL',
+                    'BLUE_FLAG_VAL',
+                    'RED_FLAG_VAL',
                     ]
             }
         config_datatype = {
@@ -193,7 +193,7 @@ class CapEnv(gym.Env):
                     if hasattr(self, option):
                         continue
                     else:
-                        raise KeyError('Configuration import fails: double check whether all config variables are included in {}'.format(config_path))
+                        raise KeyError('Configuration import failed. Check whether all config variables are included in {}'.format(config_path))
                 if datatype is bool:
                     value = config.getboolean(section, option)
                 elif datatype is int:
