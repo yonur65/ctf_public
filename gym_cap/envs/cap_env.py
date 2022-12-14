@@ -166,6 +166,7 @@ class CapEnv(gym.Env):
                     'FINAL_KILL',
                     'BLUE_FLAG_VAL',
                     'RED_FLAG_VAL',
+                    'TIME_STEP_PENALTY',
                     ]
             }
         config_datatype = {
@@ -177,7 +178,7 @@ class CapEnv(gym.Env):
                 'communication': [bool, bool, int, float],
                 'memory': [str, str, bool, bool],
                 'settings': [bool, bool, float, str,
-                        bool, int, bool, bool, bool, str, int, float, float, float, float]
+                        bool, int, bool, bool, bool, str, int, float, float, float, float, float]
             }
 
         if config_path is None and self.config_path is not None:
@@ -615,7 +616,7 @@ class CapEnv(gym.Env):
 
         # Calculate Reward
         #reward, red_reward = self._create_reward(num_blue_killed, num_red_killed, mode='instant')
-        reward, red_reward = blue_point-red_point-0.001, red_point-blue_point-0.001
+        reward, red_reward = blue_point-red_point-self.TIME_STEP_PENALTY, red_point-blue_point-self.TIME_STEP_PENALTY
 
         # Pass internal info
         info = {
