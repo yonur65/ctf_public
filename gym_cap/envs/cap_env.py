@@ -9,9 +9,9 @@ import random
 import sys
 import traceback
 
-import gym
-from gym import spaces
-from gym.utils import seeding
+import gymnasium as gym
+from gymnasium import spaces
+from gymnasium.utils import seeding
 
 import numpy as np
 
@@ -716,7 +716,7 @@ class CapEnv(gym.Env):
 
         # Interaction
         if self.STOCH_ATTACK:
-            result = self.np_random.rand(*friend_count.shape) < friend_count / (friend_count + enemy_count)
+            result = self.np_random.random(*friend_count.shape) < friend_count / (friend_count + enemy_count)
         else:
             result = friend_count > enemy_count
         result[mask] = True
@@ -1144,18 +1144,18 @@ class CapEnvGenerate(CapEnv):
 
 
 # State space for capture the flag
-class Board(spaces.Space):
+class Boardx(spaces.Space):
     """A Board in R^3 used for CtF """
     def __init__(self, shape=None, dtype=np.uint8):
         assert dtype is not None, 'dtype must be explicitly provided. '
         self.dtype = np.dtype(dtype)
 
         if shape is None:
-            self.shape = (20, 20, NUM_CHANNEL)
+            shape = (20, 20, NUM_CHANNEL)
         else:
             assert shape[2] == NUM_CHANNEL
-            self.shape = tuple(shape)
-        super(Board, self).__init__(self.shape, self.dtype)
+            shape = tuple(shape)
+        super(Board, self).__init__(shape=shape, dtype=self.dtype)
 
     def __repr__(self):
         return "Board" + str(self.shape)
@@ -1166,3 +1166,7 @@ class Board(spaces.Space):
                 self.shape[0], rand_zones=False, map_obj=map_obj)
         return state
 
+class Board(spaces.Box):
+    """A Board in R^3 used for CtF """
+    def __init__(self, low=0, high=255, shape=(20, 20, NUM_CHANNEL), dtype=np.uint8):
+        super(Board, self).__init__(low=low, high=high, shape=shape, dtype=dtype)
