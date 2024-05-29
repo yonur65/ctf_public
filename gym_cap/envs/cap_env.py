@@ -14,6 +14,7 @@ from gymnasium import spaces
 from gymnasium.utils import seeding
 
 import numpy as np
+from typing import Optional, Tuple, Union
 
 from .agent import *
 from .create_map import Map
@@ -173,7 +174,7 @@ class CapEnv(gym.Env):
                     raise Exception('Unsupported datatype')
                 setattr(self, option, value)
 
-    def reset(self, map_size=None, mode="random", policy_blue=None, policy_red=None,
+    def reset(self, map_size=20, seed: Optional[int] = None, mode="random", policy_blue=None, policy_red=None,
             custom_board=None, config_path=None):
         """ 
         Resets the game
@@ -292,7 +293,7 @@ class CapEnv(gym.Env):
         self.run_step = 0  # Number of step of current episode
         self.is_done = False
 
-        return self.get_obs_blue
+        return self.get_obs_blue, {}
 
     def _construct_agents(self, agent_coords, static_map):
         """
@@ -464,7 +465,8 @@ class CapEnv(gym.Env):
                     print("No valid policy for blue team and no actions provided", e)
                     traceback.print_exc()
                     exit()
-            elif type(entities_action) is int:
+            elif type(entities_action) is int or type(int(entities_action)) is int:
+                entities_action = int(entities_action) if type(entities_action) is int else entities_action
                 # Action given in Integer
                 move_list_blue = []
                 if entities_action >= len(self.ACTION) ** len(self._team_blue):
@@ -655,7 +657,7 @@ class CapEnv(gym.Env):
                 'flag_sandbox': self._FLAG_SANDBOX,
             }
 
-        return self.get_obs_blue, reward, self.is_done, info
+        return self.get_obs_blue, reward, {}, self.is_done, info
 
     def _stoch_transition(self, loc):
         if self.STOCH_TRANSITIONS_MOD == 'random':
