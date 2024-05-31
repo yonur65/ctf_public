@@ -1150,25 +1150,65 @@ class Boardx(spaces.Space):
     """A Board in R^3 used for CtF """
     def __init__(self, shape=None, dtype=np.uint8):
         assert dtype is not None, 'dtype must be explicitly provided. '
+        self._shape = (20, 20, NUM_CHANNEL) if shape is None else tuple(shape)
+        assert self._shape[2] == NUM_CHANNEL, 'The third dimension of shape must be equal to NUM_CHANNEL.'
         self.dtype = np.dtype(dtype)
+        super(Board, self).__init__(self._shape, self.dtype)
 
-        if shape is None:
-            shape = (20, 20, NUM_CHANNEL)
-        else:
-            assert shape[2] == NUM_CHANNEL
-            shape = tuple(shape)
-        super(Board, self).__init__(shape=shape, dtype=self.dtype)
+    @property
+    def shape(self):
+        return self._shape
+
+    @shape.setter
+    def shape(self, value):
+        assert len(value) == 3 and value[2] == NUM_CHANNEL, 'The shape must be a 3-tuple with the third value equal to NUM_CHANNEL.'
+        self._shape = tuple(value)
 
     def __repr__(self):
         return "Board" + str(self.shape)
 
     def sample(self):
         map_obj = [NUM_BLUE, NUM_BLUE_UAV, NUM_RED, NUM_RED_UAV, NUM_GRAY]
-        state, _, _ = gen_random_map('map',
-                self.shape[0], rand_zones=False, map_obj=map_obj)
+        state, _, _ = gen_random_map('map', self.shape[0], rand_zones=False, map_obj=map_obj)
         return state
 
 class Board(spaces.Box):
     """A Board in R^3 used for CtF """
     def __init__(self, low=0, high=255, shape=(20, 20, NUM_CHANNEL), dtype=np.uint8):
         super(Board, self).__init__(low=low, high=high, shape=shape, dtype=dtype)
+class BoardMSKU(spaces.Space):
+    """A Board in R^3 used for CtF """
+    def __init__(self, shape=None, dtype=np.uint8):
+        assert dtype is not None, 'dtype must be explicitly provided. '
+        self._shape = (20, 20, NUM_CHANNEL) if shape is None else tuple(shape)
+        assert self._shape[2] == NUM_CHANNEL, 'The third dimension of shape must be equal to NUM_CHANNEL.'
+        self.dtype = np.dtype(dtype)
+        super(Board, self).__init__(self._shape, self.dtype)
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @shape.setter
+    def shape(self, value):
+        assert len(value) == 3 and value[2] == NUM_CHANNEL, 'The shape must be a 3-tuple with the third value equal to NUM_CHANNEL.'
+        self._shape = tuple(value)
+
+    def __repr__(self):
+        return "Board" + str(self.shape)
+
+    def sample(self):
+        # Implement the sampling method for your Board space
+        return np.zeros(self.shape, dtype=self.dtype)
+
+    def contains(self, x):
+        # Implement the contains method to check if a point is in the space
+        return x.shape == self.shape and x.dtype == self.dtype
+
+    def to_jsonable(self, sample_n):
+        # Implement the to_jsonable method if needed
+        pass
+
+    def from_jsonable(self, sample_n):
+        # Implement the from_jsonable method if needed
+        pass
