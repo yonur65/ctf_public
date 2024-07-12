@@ -50,8 +50,8 @@ envx = gym.make('CartPole-v1')
 model = PPO("MlpPolicy", env, verbose=1)
 
 # Eğitim adımları ve kazanma oranlarını kaydetmek için değişkenler
-num_games = 500  # Toplam oyun sayısı
-timesteps_per_game = 1000  # Her oyun için zaman adımı
+num_games = 10000  # Toplam oyun sayısı
+timesteps_per_game = 800  # Her oyun için zaman adımı
 win_rates = []
 #model.learn(total_timesteps=timesteps_per_game)
 
@@ -60,7 +60,7 @@ obs, _ = env.reset(
                     map_size=20,
                     #config_path='/demo/base_setting.ini',
                     policy_red=getattr(policy, 'Roomba')(),
-                    policy_blue=getattr(policy, 'Zeros')() #policy.Fighter() # Defense Random Fighter Zeros Roomba Patrol Spiral Policy blue_policy
+                    policy_blue=getattr(policy, 'Roomba')() #policy.Fighter() # Defense Random Fighter Zeros Roomba Patrol Spiral Policy blue_policy
                 )
 #obs = envx.reset()
 for game in range(num_games):
@@ -70,7 +70,7 @@ for game in range(num_games):
     
     wins = 0
     for _ in range(timesteps_per_game):
-        action, _states = model.predict(obs, deterministic=True)
+        action, _states = model.predict(obs, deterministic=False)
         obs, reward, _, done, info = env.step(action)
         rewards.append(reward)
         if 'win' in info and info['win']:
@@ -94,6 +94,7 @@ plt.xlabel('Game Number')
 plt.ylabel('Win Rate')
 plt.grid(True)
 plt.show()
+plt.savefig('gif')
 
 # Ortamı kapatın
 env.close()
