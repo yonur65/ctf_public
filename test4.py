@@ -8,7 +8,7 @@ from stable_baselines3.common.vec_env import VecMonitor
 # Oyun ortamını Gym uyumlu hale getir
 env = flag_capture_v2.parallel_env()
 env = pettingzoo_env_to_vec_env_v1(env)
-env = concat_vec_envs_v1(env, 1, num_cpus=3, base_class='stable_baselines3')
+env = concat_vec_envs_v1(env, 1, num_cpus=1, base_class='stable_baselines3')
 
 # Ortamı izlemek için monitor ekleyelim
 env = VecMonitor(env)
@@ -19,11 +19,15 @@ red_team_model = PPO("CnnPolicy", env, verbose=0)
 blue_team_model = PPO("CnnPolicy", env, verbose=0)
 
 # Eğitim Süreci
-episodes = 30000  # Toplam episode sayısı
-max_steps = 500  # Her episode için maksimum adım sayısı
+episodes = 15  # Toplam episode sayısı
+max_steps = 10000  # Her episode için maksimum adım sayısı
 red_team_rewards = []
 blue_team_rewards = []
 test_rewards = []
+
+def is_near_opponent(red_pos, blue_pos):
+    # Ajanların birbirine olan mesafesini kontrol eder
+    return np.linalg.norm(np.array(red_pos) - np.array(blue_pos)) < 1.5
 
 for episode in range(episodes):
     obs = env.reset()
@@ -40,7 +44,31 @@ for episode in range(episodes):
             actions = [red_action, blue_action]
 
             obs, rewards, done, infos = env.step(actions)
-            
+
+            # Bayrağın güncel konumunu al
+            flag_position = infos['flag_position']  # Ortamdan bayrak pozisyonunu çek
+
+            # Ajanların pozisyon bilgilerini al
+            red_pos = infos['player_red']['position']
+            blue_pos = infos['player_blue']['position']
+
+            # Bayrağa yakınlık ödülü
+            red_distance_to_flag = np.linalg.norm(np.array(red_pos) - np.array(flag_position))
+            blue_distance_to_flag = np.linalg.norm(np.array(blue_pos) - np.array(flag_position))
+
+            # Bayrağa yeterince yakınsa ekstra ödül ver
+            if red_distance_to_flag < 2.0:
+                rewards[0] += 0.1  # Kırmızı takım ekstra ödül kazanır
+
+            if blue_distance_to_flag < 2.0:
+                rewards[1] += 0.1  # Mavi takım ekstra ödül kazanır
+
+            # Rakibe yakın olma ödülü
+            if is_near_opponent(red_pos, blue_pos):
+                rewards[0] += 0.2  # Kırmızı takım ekstra ödül kazanır
+                rewards[1] += 0.2  # Mavi takım da ödül kazanır
+
+            # Ödülleri toplama
             red_team_episode_reward += rewards[0]
 
         test_rewards.append(red_team_episode_reward)  # Test sonuçlarını kaydet
@@ -55,7 +83,31 @@ for episode in range(episodes):
             actions = [red_action, blue_action]
 
             obs, rewards, done, infos = env.step(actions)
-            
+
+            # Bayrağın güncel konumunu al
+            flag_position = infos['flag_position']  # Ortamdan bayrak pozisyonunu çek
+
+            # Ajanların pozisyon bilgilerini al
+            red_pos = infos['player_red']['position']
+            blue_pos = infos['player_blue']['position']
+
+            # Bayrağa yakınlık ödülü
+            red_distance_to_flag = np.linalg.norm(np.array(red_pos) - np.array(flag_position))
+            blue_distance_to_flag = np.linalg.norm(np.array(blue_pos) - np.array(flag_position))
+
+            # Bayrağa yeterince yakınsa ekstra ödül ver
+            if red_distance_to_flag < 2.0:
+                rewards[0] += 0.1  # Kırmızı takım ekstra ödül kazanır
+
+            if blue_distance_to_flag < 2.0:
+                rewards[1] += 0.1  # Mavi takım ekstra ödül kazanır
+
+            # Rakibe yakın olma ödülü
+            if is_near_opponent(red_pos, blue_pos):
+                rewards[0] += 0.2  # Kırmızı takım ekstra ödül kazanır
+                rewards[1] += 0.2  # Mavi takım da ödül kazanır
+
+            # Ödülleri toplama
             red_team_episode_reward += rewards[0]
             blue_team_episode_reward += rewards[1]
 
@@ -71,4 +123,4 @@ plt.ylabel('Total Reward')
 plt.title('Training and Testing Performance of Red Team')
 plt.legend()
 plt.show()
-plt.savefig('test3.png')
+plt.savefig('test4.png')
