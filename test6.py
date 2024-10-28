@@ -236,7 +236,7 @@ def train_and_test():
     plt.ylabel('Ortalama Ödül')
     plt.title('Ajanların Performans Artışı (Ortalama Ödül)')
     # Grafiği kaydet
-    plt.savefig('manuel_code.png')
+    plt.savefig('manuel_code_v1.png')
     plt.legend()
     plt.show()
 

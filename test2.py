@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import gym_cap.heuristic as policy
 
-
 class CompatibleEnv(gym.Wrapper):
     def reset(self, **kwargs):
         kwargs.pop('seed', None)
@@ -21,94 +20,61 @@ env = CompatibleEnv(gym.make('cap-v0'))
 model = PPO("MlpPolicy", env, verbose=1)
 
 # Eğitim adımları ve kazanma oranlarını kaydetmek için değişkenler
-num_games = 2  # Toplam oyun sayısı
-timesteps_per_game = 10  # Her oyun için zaman adımı
-win_rates = []
-evaluation_interval = 100
+num_games = 10000  # Toplam oyun sayısı (artırıldı)
+evaluation_interval = 30  # Değerlendirme aralığı
+timesteps_per_game = 1000  # Her oyun için zaman adımı
+
+total_rewards = []
+
+print(env.MAX_STEP)
+
+env.CONTROL_ALL = False
+
 
 # Modeli eğitin ve kazanma oranlarını kaydedin
-for game in range(num_games):
+for game in range(1, num_games + 1):
     obs, _ = env.reset(
         map_size=20,
-        policy_red=getattr(policy, 'Roomba')(),
+        policy_red=getattr(policy, 'Zeros')(),
         policy_blue=getattr(policy, 'Roomba')()
     )
-    #if game % evaluation_interval == 0:
-        # Modeli belirli bir adım sayısında eğit
-       # model.learn(total_timesteps=timesteps_per_game * evaluation_interval)
-    model.learn(total_timesteps=timesteps_per_game)
-    rewards = []
-    wins = 0
     
-    for _ in range(timesteps_per_game):
-        action, _states = model.predict(obs, deterministic=False)
-        obs, reward, _, done, info = env.step(action)
-       # model.remember(obs, action, reward, done)
-        rewards.append(reward)
-        if 'win' in info and info['win']:
-            wins += 1
-        if done:
-            obs, _ = env.reset(
-                map_size=20,
-                policy_red=getattr(policy, 'Roomba')(),
-                policy_blue=getattr(policy, 'Roomba')()
-            )
+    # Modeli belirli bir aralıkla eğitin
+    if game % evaluation_interval == 0:
+        model.learn(total_timesteps=timesteps_per_game * evaluation_interval)
+        
+    # Test Oyunları ve Toplam Ödül Hesaplama
+    total_reward = 0
+    for _ in range(10):  # Her bir eğitim değerlendirmesinde 10 oyun test etme
+        obs, _ = env.reset(
+            map_size=20,
+            policy_red=getattr(policy, 'Zeros')(),
+            policy_blue=getattr(policy, 'Roomba')()
+        )
+        done = False
+        episode_reward = 0
+        while not done:
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, _, done, info = env.step(action)
+            episode_reward += reward
+        total_reward += episode_reward
     
-    win_rate = sum(rewards) #wins / timesteps_per_game
-    win_rates.append(win_rate)
-    print(f"Game {game + 1}/{num_games}: Win Rate = {win_rate:.2f}")
+    avg_reward = total_reward / 10.0  # Her bir değerlendirme oyununda ortalama ödül
+    total_rewards.append(avg_reward)
+    print(f"Evaluation Game {game}/{num_games}: Average Reward = {avg_reward:.2f}")
 
 # Modeli kaydedin
 model.save("ppo_ctf_model")
 
-# Kazanma oranı grafiğini oluşturun
+# Ortalama Ödül Grafiğini Oluşturun
 plt.figure(figsize=(10, 5))
-plt.plot(np.arange(1, num_games + 1), win_rates, marker='o', linestyle='-', color='b')
-plt.title('Win Rate per Game')
-plt.xlabel('Game Number')
-plt.ylabel('Win Rate')
+plt.plot(np.arange(1, len(total_rewards) + 1) * evaluation_interval, total_rewards, marker='o', linestyle='-', color='b')
+plt.title('Average Reward per Evaluation Interval')
+plt.xlabel('Training Steps')
+plt.ylabel('Average Reward')
 plt.grid(True)
+plt.savefig('test2_blue_train_10K_.png')
 plt.show()
-plt.savefig('win_rate_plot.png')
 
 # Ortamı kapatın
 env.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-""" from gym import spaces
-class Board(spaces.Space):
-    
-    def __init__(self, _shape=None, dtype=np.uint8):
-        assert dtype is not None, 'dtype must be explicitly provided. '
-        self.dtype = np.dtype(dtype)
-
-        if _shape is None:
-            self.shape = (20, 20, NUM_CHANNEL)
-        else:
-            assert _shape[2] == NUM_CHANNEL
-            self.shape = tuple(_shape)
-        super(Board, self).__init__(self.shape, self.dtype)
-
-    def __repr__(self):
-        return "Board" + str(self.shape)
-
-    def sample(self):
-        map_obj = [NUM_BLUE, NUM_BLUE_UAV, NUM_RED, NUM_RED_UAV, NUM_GRAY]
-        state, _, _ = gen_random_map('map',
-                self.shape[0], rand_zones=False, map_obj=map_obj)
-        return state"""
