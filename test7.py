@@ -10,10 +10,17 @@ class CaptureTheFlagEnv:
         self.reset()
 
     # Ortamı sıfırla
-    def reset(self):
+    def reset2(self):
         self.attacker_pos = [0, random.randint(0, self.grid_size - 1)]  # Saldırgan başlangıç pozisyonu
         self.defender_pos = [self.grid_size - 1, random.randint(0, self.grid_size - 1)]  # Savunmacı başlangıç pozisyonu
         self.flag_pos = [random.randint(0, self.grid_size - 1), random.randint(0, self.grid_size - 1)]  # Bayrak pozisyonu
+        return self.get_state()
+    
+        # Ortamı sıfırla
+    def reset(self):
+        self.attacker_pos = [0, random.randint(0, self.grid_size)]  # Saldırgan başlangıç pozisyonu
+        self.defender_pos = [self.grid_size - 1, random.randint(0, self.grid_size)]  # Savunmacı başlangıç pozisyonu  self.grid_size - 1
+        self.flag_pos = [random.randint(0, self.grid_size),random.randint(0, self.grid_size)]  # Bayrak pozisyonu random.randint(0, self.grid_size)
         return self.get_state()
 
     # Mevcut durumu al
@@ -59,7 +66,7 @@ class CaptureTheFlagEnv:
         # Savunmacının saldırgana olan mesafesine göre ödül/ceza (tam tersi)
         if curr_defender_dist < prev_defender_dist:
             reward -= 1  # Savunmacı yaklaşıyor, saldırgan için ceza
-            rreward += 3
+            rreward += 3.5
         elif curr_defender_dist > prev_defender_dist:
             rreward -= 2
         else:
@@ -348,35 +355,72 @@ def train_and_test():
 
     # Ajan modelleri
     agent_models = {
-        'Q-Learning': QLearningAgent(actions),
-        'SARSA': SARSAAgent(actions),
-        'Double Q-Learning': DoubleQLearningAgent(actions),
-        'Expected SARSA': ExpectedSARSAAgent(actions),
-        'Monte Carlo': MonteCarloAgent(actions),
-        'Dyna-Q': DynaQAgent(actions)
+        'Q-Learning': {
+            'attacker': QLearningAgent(actions),
+            'defender': QLearningAgent(actions)
+        },
+        #'Q-Learning': QLearningAgent(actions),
+        # 'SARSA': SARSAAgent(actions),
+        # 'Double Q-Learning': DoubleQLearningAgent(actions),
+        # 'Expected SARSA': ExpectedSARSAAgent(actions),
+        # 'Monte Carlo': MonteCarloAgent(actions),
+        # 'Dyna-Q': DynaQAgent(actions)
     }
-
+    agent_models = {
+        'Q-Learning': {
+            'attacker': QLearningAgent(actions),
+            'defender': QLearningAgent(actions)
+        },
+        'SARSA': {
+            'attacker': SARSAAgent(actions),
+            'defender': SARSAAgent(actions)
+        },
+        'Double Q-Learning': {
+            'attacker': DoubleQLearningAgent(actions),
+            'defender': DoubleQLearningAgent(actions)
+        },
+        'Expected SARSA': {
+            'attacker': ExpectedSARSAAgent(actions),
+            'defender': ExpectedSARSAAgent(actions)
+        },
+        'Monte Carlo': {
+            'attacker': MonteCarloAgent(actions),
+            'defender': MonteCarloAgent(actions)
+        },
+        'Dyna-Q': {
+            'attacker': DynaQAgent(actions),
+            'defender': DynaQAgent(actions)
+        }
+    }
     # Rastgele ajanlar
     random_attacker = RandomAgent(actions)
     random_defender = RandomAgent(actions)
 
-    total_episodes = 200000
-    test_interval = 1000
+    total_episodes = 5000
+    test_interval = 200
     test_episodes = 500
+    max_steps = 200 
 
     # Sonuçları saklamak için
     results = {model: {'trained_attacker': [], 'trained_defender': []} for model in agent_models.keys()}
 
     # Eğitim ve periyodik test
     for episode in range(1, total_episodes + 1):
+        print(f"Episode: {episode}" )
         state = env.reset()
+        mc_attacker_steps = []
+        mc_defender_steps = []
         # Her model için ayrı eğitim
         for model_name, agent in agent_models.items():
+            attacker_agent = agent['attacker']
+            defender_agent = agent['defender']
             done = False
-            while not done:
+            step_count = 0  # Adım sayacını başlat
+            while not done and step_count < max_steps:
+                step_count += 1
                 # Ajan eylem seçimi
-                attacker_action = agent.choose_action(state)
-                defender_action = agent_models[model_name].choose_action(state)  # Aynı modelden defender
+                attacker_action = attacker_agent.choose_action(state)
+                defender_action = defender_agent.choose_action(state)  # Aynı modelden defender
 
                 next_state, reward, rreward, done = env.step(attacker_action, defender_action)
 
@@ -388,16 +432,30 @@ def train_and_test():
                 # Ajanı eğit
                 if model_name == 'SARSA':
                     # SARSA için sonraki eylemi de seçmek gerekiyor
-                    next_action = agent.choose_action(next_state)
-                    agent.learn(state, attacker_action, reward, next_state, next_action)
+                    next_attacker_action = attacker_agent.choose_action(next_state)
+                    next_defender_action = defender_agent.choose_action(next_state)
+                    attacker_agent.learn(state, attacker_action, reward, next_state, next_attacker_action)
+                    defender_agent.learn(state, attacker_action, rreward, next_state, next_defender_action)
                 elif model_name == 'Monte Carlo':
                     # Monte Carlo için episodic yaklaşımlar gerek
                     # Burada basit bir yaklaşım kullanılabilir
-                    pass  # Detaylı implementasyon gerekli
+                    #pass  # Detaylı implementasyon gerekli
+                    mc_attacker_steps.append((state, attacker_action, reward))
+                    # Collect steps for defender
+                    mc_defender_steps.append((state, defender_action, rreward))
                 else:
-                    agent.learn(state, attacker_action, reward, next_state_str)
+                    attacker_agent.learn(state, attacker_action, reward, next_state_str)
+                    defender_agent.learn(state, attacker_action, rreward, next_state_str)
 
                 state = next_state
+
+        # After the episode, update Monte Carlo agents
+        if 'Monte Carlo' in agent_models:
+            mc_attacker_agent = agent_models['Monte Carlo']['attacker']
+            mc_defender_agent = agent_models['Monte Carlo']['defender']
+            # Learn from the collected episode
+            mc_attacker_agent.learn([mc_attacker_steps])
+            mc_defender_agent.learn([mc_defender_steps])
 
         # Her test_interval bölümde bir test yap
         if episode % test_interval == 0:
@@ -407,8 +465,10 @@ def train_and_test():
                 for _ in range(test_episodes):
                     state = env.reset()
                     total_reward = 0
-                    while True:
-                        attacker_action = agent.choose_action(state)
+                    step_count = 0 
+                    while True and step_count < max_steps:
+                        step_count += 1
+                        attacker_action = agent['attacker'].choose_action(state)
                         defender_action = random_defender.choose_action(state)
 
                         next_state, reward, rreward, done = env.step(attacker_action, defender_action)
@@ -425,9 +485,11 @@ def train_and_test():
                 for _ in range(test_episodes):
                     state = env.reset()
                     total_reward = 0
-                    while True:
+                    step_count = 0 
+                    while True and step_count < max_steps:
+                        step_count += 1
                         attacker_action = random_attacker.choose_action(state)
-                        defender_action = agent.choose_action(state)
+                        defender_action = agent['defender'].choose_action(state)
 
                         next_state, reward, rreward, done = env.step(attacker_action, defender_action)
 
@@ -474,7 +536,7 @@ def train_and_test():
 
     plt.tight_layout()
     # Grafiği kaydet
-    plt.savefig('agent_performance_comparison.png')
+    plt.savefig('agent_performance_comparison_2K_v4.png')
     plt.show()
 
 if __name__ == "__main__":
