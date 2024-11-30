@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from collections import defaultdict, deque
+import psutil
+import time
 
 # Oyun ortamı sınıfı
 class CaptureTheFlagEnv:
@@ -28,7 +30,7 @@ class CaptureTheFlagEnv:
         return (tuple(self.attacker_pos), tuple(self.defender_pos), tuple(self.flag_pos))
 
     # Ajanları hareket ettir
-    def step(self, attacker_action, defender_action):
+    def step(self, attacker_action, defender_action, luck=True):
         prev_attacker_dist = self.get_distance(self.attacker_pos, self.flag_pos)
         prev_defender_dist = self.get_distance(self.defender_pos, self.attacker_pos)
 
@@ -66,11 +68,15 @@ class CaptureTheFlagEnv:
         # Savunmacının saldırgana olan mesafesine göre ödül/ceza (tam tersi)
         if curr_defender_dist < prev_defender_dist:
             reward -= 1  # Savunmacı yaklaşıyor, saldırgan için ceza
-            rreward += 4.3
+            rreward += 3.8
         elif curr_defender_dist > prev_defender_dist:
             rreward -= 2
         else:
             rreward -= 1
+
+        if luck:
+            reward += random.randint(0, 4)
+            rreward += random.randint(0, 4)
 
         return self.get_state(), reward, rreward, done
 
@@ -101,104 +107,8 @@ class BaseAgent:
     def check_state_exist(self, state):
         pass
 
-
 # Q-Öğrenme ajanı
-class QLearningAgentNew:
-    def __init__(self, actions, alpha=0.5, gamma=0.99, epsilon=1):
-        self.q_table = {}  # Q-değerleri tablosu
-        self.actions = actions  # Eylem seti
-        self.alpha = alpha  # Öğrenme hızı
-        self.gamma = gamma  # İndirim faktörü
-        self.epsilon = epsilon  # Keşif olasılığı
-
-        self.initial_alpha = alpha
-        self.initial_epsilon = epsilon
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995  # Epsilon'un her bölümde azalacağı oran
-
-    # Eylem seç
-    def choose_action(self, state):
-        state = str(state)
-        self.check_state_exist(state)
-        if np.random.uniform(0, 1) < self.epsilon:
-            # Rastgele eylem seç (keşif)
-            action = np.random.choice(self.actions)
-        else:
-            # En iyi eylemi seç (sömürü)
-            q_values = self.q_table[state]
-            max_q = np.max(q_values)
-            max_actions = [i for i, q in enumerate(q_values) if q == max_q]
-            action = np.random.choice(max_actions)
-        return action
-
-    # Q-değerlerini güncelle
-    def learn(self, s, a, r, s_):
-        s, s_ = str(s), str(s_)
-        self.check_state_exist(s)
-        if s_ != 'terminal':
-            self.check_state_exist(s_)
-            q_target = r + self.gamma * np.max(self.q_table[s_])
-        else:
-            q_target = r
-        q_predict = self.q_table[s][a]
-        self.q_table[s][a] += self.alpha * (q_target - q_predict)
-
-    # Durum Q-değerleri tablosunda yoksa ekle
-    def check_state_exist(self, state):
-        if state not in self.q_table:
-            self.q_table[state] = np.zeros(len(self.actions))
-    
-    def update_parameters(self, episode, total_episodes):
-        # Alpha'yı güncelle: Bölüm ilerledikçe azalsın
-        self.alpha = self.initial_alpha * (1 - (episode / total_episodes))
-        # Epsilon'u güncelle: Bölüm ilerledikçe azalır, epsilon_min sınırına kadar
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
-
-# Q-Öğrenme ajanı
-class QLearningAgent:
-    def __init__(self, actions, alpha=0.2, gamma=0.9, epsilon=0.2):
-        self.q_table = {}  # Q-değerleri tablosu
-        self.actions = actions  # Eylem seti
-        self.alpha = alpha  # Öğrenme hızı
-        self.gamma = gamma  # İndirim faktörü
-        self.epsilon = epsilon  # Keşif olasılığı
-
-    # Eylem seç
-    def choose_action(self, state):
-        state = str(state)
-        self.check_state_exist(state)
-        if np.random.uniform(0, 1) < self.epsilon:
-            # Rastgele eylem seç (keşif)
-            action = np.random.choice(self.actions)
-        else:
-            # En iyi eylemi seç (sömürü)
-            q_values = self.q_table[state]
-            max_q = np.max(q_values)
-            max_actions = [i for i, q in enumerate(q_values) if q == max_q]
-            action = np.random.choice(max_actions)
-        return action
-
-    # Q-değerlerini güncelle
-    def learn(self, s, a, r, s_):
-        s, s_ = str(s), str(s_)
-        self.check_state_exist(s)
-        if s_ != 'terminal':
-            self.check_state_exist(s_)
-            q_target = r + self.gamma * np.max(self.q_table[s_])
-        else:
-            q_target = r
-        q_predict = self.q_table[s][a]
-        self.q_table[s][a] += self.alpha * (q_target - q_predict)
-
-    # Durum Q-değerleri tablosunda yoksa ekle
-    def check_state_exist(self, state):
-        if state not in self.q_table:
-            self.q_table[state] = np.zeros(len(self.actions))
-
-# Q-Öğrenme ajanı
-class QLearningAgent2(BaseAgent):
+class QLearningAgent(BaseAgent):
     def __init__(self, actions, alpha=0.2, gamma=0.9, epsilon=0.2):
         self.q_table = {}  # Q-değerleri tablosu
         self.actions = actions  # Eylem seti
@@ -444,29 +354,34 @@ class RandomAgent(BaseAgent):
     def learn(self, s, a, r, s_):
         pass  # Rastgele ajan öğrenmez
 
+
+def get_system_usage():
+    process = psutil.Process()
+    mem_info = process.memory_info()
+    return {
+        "cpu_percent": psutil.cpu_percent(interval=None),
+        "memory_mb": mem_info.rss / (1024 * 1024)  # RSS belleği MB cinsinden alır
+    }
+
 # Eğitim ve test fonksiyonu
 def train_and_test():
     env = CaptureTheFlagEnv()
     actions = [0, 1, 2, 3, 4]  # Yukarı, Aşağı, Sol, Sağ, Bekle
 
-    # Ajan modelleri
+    # # Ajan modelleri
+    # agent_models = {
+    #     'Q-Learning': {
+    #         'attacker': QLearningAgent(actions),
+    #         'defender': QLearningAgent(actions)
+    #     },
+    #     #'Q-Learning': QLearningAgent(actions),
+    #     # 'SARSA': SARSAAgent(actions),
+    #     # 'Double Q-Learning': DoubleQLearningAgent(actions),
+    #     # 'Expected SARSA': ExpectedSARSAAgent(actions),
+    #     # 'Monte Carlo': MonteCarloAgent(actions),
+    #     # 'Dyna-Q': DynaQAgent(actions)
+    # }
     agent_models = {
-        'Q-Learning-New': {
-            'attacker': QLearningAgentNew(actions),
-            'defender': QLearningAgentNew(actions)
-        },
-        'Q-Learning': {
-            'attacker': QLearningAgent(actions),
-            'defender': QLearningAgent(actions)
-        },
-        #'Q-Learning': QLearningAgent(actions),
-        # 'SARSA': SARSAAgent(actions),
-        # 'Double Q-Learning': DoubleQLearningAgent(actions),
-        # 'Expected SARSA': ExpectedSARSAAgent(actions),
-        # 'Monte Carlo': MonteCarloAgent(actions),
-        # 'Dyna-Q': DynaQAgent(actions)
-    }
-    agent_models2 = {
         'Q-Learning': {
             'attacker': QLearningAgent(actions),
             'defender': QLearningAgent(actions)
@@ -496,14 +411,15 @@ def train_and_test():
     random_attacker = RandomAgent(actions)
     random_defender = RandomAgent(actions)
 
-    total_episodes = 20000
-    test_interval = 500
+    total_episodes = 5000
+    test_interval = 200
     test_episodes = 500
-    max_steps = 550 
+    max_steps = 200 
 
     # Sonuçları saklamak için
     results = {model: {'trained_attacker': [], 'trained_defender': []} for model in agent_models.keys()}
-
+    performance_metrics = {model: {"cpu": [], "memory": [], "time":[], "step":[],"total_step":0, "total_time":0 } for model in agent_models.keys()}
+    #total_step_count = 0
     # Eğitim ve periyodik test
     for episode in range(1, total_episodes + 1):
         print(f"Episode: {episode}" )
@@ -516,6 +432,9 @@ def train_and_test():
             defender_agent = agent['defender']
             done = False
             step_count = 0  # Adım sayacını başlat
+            cpu_total=0
+            ram_total=0
+            start_time = time.time()
             while not done and step_count < max_steps:
                 step_count += 1
                 # Ajan eylem seçimi
@@ -547,10 +466,19 @@ def train_and_test():
                     attacker_agent.learn(state, attacker_action, reward, next_state_str)
                     defender_agent.learn(state, attacker_action, rreward, next_state_str)
 
+                        # Performans ölçümlerini al
+                usage = get_system_usage()
+                cpu_total +=usage["cpu_percent"]
+                ram_total +=usage["memory_mb"]
                 state = next_state
-            if model_name == 'Q-Learning-New':
-                attacker_agent.update_parameters(episode, total_episodes)
-                defender_agent.update_parameters(episode, total_episodes)
+            #total_step_count +=step_count 
+            performance_metrics[model_name]["total_step"] += step_count
+            performance_metrics[model_name]["total_time"] += time.time() - start_time
+            performance_metrics[model_name]["cpu"].append(cpu_total/step_count)
+            performance_metrics[model_name]["memory"].append(ram_total/step_count)
+            performance_metrics[model_name]["time"].append(performance_metrics[model_name]["total_time"]/episode)
+            performance_metrics[model_name]["step"].append(performance_metrics[model_name]["total_step"]/episode)
+
         # After the episode, update Monte Carlo agents
         if 'Monte Carlo' in agent_models:
             mc_attacker_agent = agent_models['Monte Carlo']['attacker']
@@ -612,10 +540,10 @@ def train_and_test():
             print(f"Episode {episode} completed and tested.")
 
     # Sonuçları grafikle
-    plt.figure(figsize=(14, 6))
+    plt.figure(figsize=(14, 14))
 
     # Eğitimli saldırganlar
-    plt.subplot(1, 2, 1)
+    plt.subplot(3, 2, 1)
     for model_name in agent_models.keys():
         plt.plot(range(test_interval, total_episodes + 1, test_interval),
                  results[model_name]['trained_attacker'],
@@ -626,7 +554,7 @@ def train_and_test():
     plt.legend()
 
     # Eğitimli savunmacılar
-    plt.subplot(1, 2, 2)
+    plt.subplot(3, 2, 2)
     for model_name in agent_models.keys():
         plt.plot(range(test_interval, total_episodes + 1, test_interval),
                  results[model_name]['trained_defender'],
@@ -636,9 +564,50 @@ def train_and_test():
     plt.title('Eğitimli Savunmacıların Performansı')
     plt.legend()
 
+    # CPU kullanımı
+
+    def moving_average(data, window_size=50):
+        return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+    plt.subplot(3, 2, 3)
+    for model_name in performance_metrics.keys():
+        #plt.plot(performance_metrics[model_name]["cpu"], label=f'{model_name} CPU Kullanımı')
+        smoothed_cpu = moving_average(performance_metrics[model_name]["cpu"], window_size=50)
+        plt.plot(smoothed_cpu, label=f'{model_name}', alpha=0.7)
+    plt.xlabel('Adım Sayısı')
+    plt.ylabel('CPU Yüzdesi (%)')
+    plt.title('Model Eğitiminde CPU Kullanımı')
+    plt.legend()
+
+    # RAM kullanımı
+    plt.subplot(3, 2, 4)
+    for model_name in performance_metrics.keys():
+        plt.plot(performance_metrics[model_name]["memory"], label=f'{model_name}')
+    plt.xlabel('Adım Sayısı')
+    plt.ylabel('RAM Kullanımı (MB)')
+    plt.title('Model Eğitiminde RAM Kullanımı')
+    plt.legend()
+
+    # RAM kullanımı
+    plt.subplot(3, 2, 5)
+    for model_name in performance_metrics.keys():
+        plt.plot(performance_metrics[model_name]["time"], label=f'{model_name}')
+    plt.xlabel('Adım Sayısı')
+    plt.ylabel('Zaman Kullanımı (S)')
+    plt.title('Model Eğitiminde Süre Kullanımı')
+    plt.legend()
+
+    # RAM kullanımı
+    plt.subplot(3, 2, 6)
+    for model_name in performance_metrics.keys():
+        plt.plot(performance_metrics[model_name]["step"], label=f'{model_name}')
+    plt.xlabel('Adım Sayısı')
+    plt.ylabel('Adım kullanımı')
+    plt.title('Model Eğitiminde Adım Kullanımı')
+    plt.legend()
+
     plt.tight_layout()
     # Grafiği kaydet
-    plt.savefig('test7_agent_performance_comparison_20K_v14.png')
+    plt.savefig('test8_agent_performance_comparison_LT_5K_v6.png')
     plt.show()
 
 if __name__ == "__main__":
