@@ -104,7 +104,7 @@ class BaseAgent:
 
 # Q-Öğrenme ajanı
 class QLearningAgentNew:
-    def __init__(self, actions, alpha=0.5, gamma=0.99, epsilon=1):
+    def __init__(self, actions, alpha=0.9, gamma=0.99, epsilon=1):
         self.q_table = {}  # Q-değerleri tablosu
         self.actions = actions  # Eylem seti
         self.alpha = alpha  # Öğrenme hızı
@@ -112,7 +112,7 @@ class QLearningAgentNew:
         self.epsilon = epsilon  # Keşif olasılığı
 
         self.initial_alpha = alpha
-        self.initial_epsilon = epsilon
+        self.alpha_min = 0.01
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995  # Epsilon'un her bölümde azalacağı oran
 
@@ -150,7 +150,8 @@ class QLearningAgentNew:
     
     def update_parameters(self, episode, total_episodes):
         # Alpha'yı güncelle: Bölüm ilerledikçe azalsın
-        self.alpha = self.initial_alpha * (1 - (episode / total_episodes))
+        if self.alpha > self.alpha_min:
+            self.alpha = self.initial_alpha * (1 - (episode / total_episodes))
         # Epsilon'u güncelle: Bölüm ilerledikçe azalır, epsilon_min sınırına kadar
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
@@ -507,11 +508,11 @@ def train_and_test():
     # Eğitim ve periyodik test
     for episode in range(1, total_episodes + 1):
         print(f"Episode: {episode}" )
-        state = env.reset()
         mc_attacker_steps = []
         mc_defender_steps = []
         # Her model için ayrı eğitim
         for model_name, agent in agent_models.items():
+            state = env.reset()
             attacker_agent = agent['attacker']
             defender_agent = agent['defender']
             done = False
@@ -638,7 +639,7 @@ def train_and_test():
 
     plt.tight_layout()
     # Grafiği kaydet
-    plt.savefig('test7_agent_performance_comparison_20K_v14.png')
+    plt.savefig('test7_agent_performance_comparison_20K_v18.png')
     plt.show()
 
 if __name__ == "__main__":

@@ -68,7 +68,7 @@ class CaptureTheFlagEnv:
         # Savunmacının saldırgana olan mesafesine göre ödül/ceza (tam tersi)
         if curr_defender_dist < prev_defender_dist:
             reward -= 1  # Savunmacı yaklaşıyor, saldırgan için ceza
-            rreward += 3.8
+            rreward += 4.5
         elif curr_defender_dist > prev_defender_dist:
             rreward -= 2
         else:
@@ -109,6 +109,61 @@ class BaseAgent:
 
 # Q-Öğrenme ajanı
 class QLearningAgent(BaseAgent):
+    def __init__(self, actions, alpha=0.7, gamma=0.99, epsilon=1):
+        self.q_table = {}  # Q-değerleri tablosu
+        self.actions = actions  # Eylem seti
+        self.alpha = alpha  # Öğrenme hızı
+        self.gamma = gamma  # İndirim faktörü
+        self.epsilon = epsilon  # Keşif olasılığı
+
+        self.initial_alpha = alpha
+        self.alpha_min = 0.3
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.995  # Epsilon'un her bölümde azalacağı oran
+
+    # Eylem seç
+    def choose_action(self, state):
+        state = str(state)
+        self.check_state_exist(state)
+        if np.random.uniform(0, 1) < self.epsilon:
+            # Rastgele eylem seç (keşif)
+            action = np.random.choice(self.actions)
+        else:
+            # En iyi eylemi seç (sömürü)
+            q_values = self.q_table[state]
+            max_q = np.max(q_values)
+            max_actions = [i for i, q in enumerate(q_values) if q == max_q]
+            action = np.random.choice(max_actions)
+        return action
+
+    # Q-değerlerini güncelle
+    def learn(self, s, a, r, s_):
+        s, s_ = str(s), str(s_)
+        self.check_state_exist(s)
+        if s_ != 'terminal':
+            self.check_state_exist(s_)
+            q_target = r + self.gamma * np.max(self.q_table[s_])
+        else:
+            q_target = r
+        q_predict = self.q_table[s][a]
+        self.q_table[s][a] += self.alpha * (q_target - q_predict)
+
+    # Durum Q-değerleri tablosunda yoksa ekle
+    def check_state_exist(self, state):
+        if state not in self.q_table:
+            self.q_table[state] = np.zeros(len(self.actions))
+    
+    def update_parameters(self, episode, total_episodes):
+        # Alpha'yı güncelle: Bölüm ilerledikçe azalsın
+        if self.alpha > self.alpha_min:
+            self.alpha = self.initial_alpha * (1 - (episode / total_episodes))
+        # Epsilon'u güncelle: Bölüm ilerledikçe azalır, epsilon_min sınırına kadar
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
+
+# Q-Öğrenme ajanı
+class QLearningAgent2(BaseAgent):
     def __init__(self, actions, alpha=0.2, gamma=0.9, epsilon=0.2):
         self.q_table = {}  # Q-değerleri tablosu
         self.actions = actions  # Eylem seti
@@ -146,6 +201,9 @@ class QLearningAgent(BaseAgent):
     def check_state_exist(self, state):
         if state not in self.q_table:
             self.q_table[state] = np.zeros(len(self.actions))
+
+    def update_parameters(self, episode, total_episodes):
+        pass
 
 # SARSA ajanı
 class SARSAAgent(BaseAgent):
@@ -363,25 +421,24 @@ def get_system_usage():
         "memory_mb": mem_info.rss / (1024 * 1024)  # RSS belleği MB cinsinden alır
     }
 
+def split_state(state, fog=False):
+    if fog:
+        return state[0], state[1]
+    return state, state
+
 # Eğitim ve test fonksiyonu
 def train_and_test():
     env = CaptureTheFlagEnv()
     actions = [0, 1, 2, 3, 4]  # Yukarı, Aşağı, Sol, Sağ, Bekle
 
-    # # Ajan modelleri
-    # agent_models = {
-    #     'Q-Learning': {
-    #         'attacker': QLearningAgent(actions),
-    #         'defender': QLearningAgent(actions)
-    #     },
-    #     #'Q-Learning': QLearningAgent(actions),
-    #     # 'SARSA': SARSAAgent(actions),
-    #     # 'Double Q-Learning': DoubleQLearningAgent(actions),
-    #     # 'Expected SARSA': ExpectedSARSAAgent(actions),
-    #     # 'Monte Carlo': MonteCarloAgent(actions),
-    #     # 'Dyna-Q': DynaQAgent(actions)
-    # }
+    # Ajan modelleri
     agent_models = {
+        'Q-Learning': {
+            'attacker': QLearningAgent(actions),
+            'defender': QLearningAgent(actions)
+        },
+    }
+    agent_model2 = {
         'Q-Learning': {
             'attacker': QLearningAgent(actions),
             'defender': QLearningAgent(actions)
@@ -411,23 +468,23 @@ def train_and_test():
     random_attacker = RandomAgent(actions)
     random_defender = RandomAgent(actions)
 
-    total_episodes = 5000
-    test_interval = 200
+    total_episodes = 20000
+    test_interval = 1000
     test_episodes = 500
-    max_steps = 200 
+    max_steps = 500 
 
     # Sonuçları saklamak için
     results = {model: {'trained_attacker': [], 'trained_defender': []} for model in agent_models.keys()}
-    performance_metrics = {model: {"cpu": [], "memory": [], "time":[], "step":[],"total_step":0, "total_time":0 } for model in agent_models.keys()}
+    performance_metrics = {model: {"cpu": [], "memory": [], "time":[], "step":[],"total_cpu":0, "total_ram":0, "total_step":0, "total_time":0 } for model in agent_models.keys()}
     #total_step_count = 0
     # Eğitim ve periyodik test
     for episode in range(1, total_episodes + 1):
         print(f"Episode: {episode}" )
-        state = env.reset()
         mc_attacker_steps = []
         mc_defender_steps = []
         # Her model için ayrı eğitim
         for model_name, agent in agent_models.items():
+            state = env.reset()
             attacker_agent = agent['attacker']
             defender_agent = agent['defender']
             done = False
@@ -436,10 +493,11 @@ def train_and_test():
             ram_total=0
             start_time = time.time()
             while not done and step_count < max_steps:
+                state_attacker, state_defender = split_state(state)
                 step_count += 1
                 # Ajan eylem seçimi
-                attacker_action = attacker_agent.choose_action(state)
-                defender_action = defender_agent.choose_action(state)  # Aynı modelden defender
+                attacker_action = attacker_agent.choose_action(state_attacker)
+                defender_action = defender_agent.choose_action(state_defender)  # Aynı modelden defender
 
                 next_state, reward, rreward, done = env.step(attacker_action, defender_action)
 
@@ -453,18 +511,18 @@ def train_and_test():
                     # SARSA için sonraki eylemi de seçmek gerekiyor
                     next_attacker_action = attacker_agent.choose_action(next_state)
                     next_defender_action = defender_agent.choose_action(next_state)
-                    attacker_agent.learn(state, attacker_action, reward, next_state, next_attacker_action)
-                    defender_agent.learn(state, attacker_action, rreward, next_state, next_defender_action)
+                    attacker_agent.learn(state_attacker, attacker_action, reward, next_state, next_attacker_action)
+                    defender_agent.learn(state_defender, attacker_action, rreward, next_state, next_defender_action)
                 elif model_name == 'Monte Carlo':
                     # Monte Carlo için episodic yaklaşımlar gerek
                     # Burada basit bir yaklaşım kullanılabilir
                     #pass  # Detaylı implementasyon gerekli
-                    mc_attacker_steps.append((state, attacker_action, reward))
+                    mc_attacker_steps.append((state_attacker, attacker_action, reward))
                     # Collect steps for defender
-                    mc_defender_steps.append((state, defender_action, rreward))
+                    mc_defender_steps.append((state_defender, defender_action, rreward))
                 else:
-                    attacker_agent.learn(state, attacker_action, reward, next_state_str)
-                    defender_agent.learn(state, attacker_action, rreward, next_state_str)
+                    attacker_agent.learn(state_attacker, attacker_action, reward, next_state_str)
+                    defender_agent.learn(state_defender, attacker_action, rreward, next_state_str)
 
                         # Performans ölçümlerini al
                 usage = get_system_usage()
@@ -472,10 +530,15 @@ def train_and_test():
                 ram_total +=usage["memory_mb"]
                 state = next_state
             #total_step_count +=step_count 
+            if model_name == 'Q-Learning':
+                attacker_agent.update_parameters(episode, total_episodes)
+                defender_agent.update_parameters(episode, total_episodes)
             performance_metrics[model_name]["total_step"] += step_count
             performance_metrics[model_name]["total_time"] += time.time() - start_time
-            performance_metrics[model_name]["cpu"].append(cpu_total/step_count)
-            performance_metrics[model_name]["memory"].append(ram_total/step_count)
+            performance_metrics[model_name]["total_cpu"] += cpu_total/step_count
+            performance_metrics[model_name]["total_ram"] += ram_total/step_count
+            performance_metrics[model_name]["cpu"].append(np.mean(performance_metrics[model_name]["total_cpu"]))
+            performance_metrics[model_name]["memory"].append(np.mean(performance_metrics[model_name]["total_ram"]))
             performance_metrics[model_name]["time"].append(performance_metrics[model_name]["total_time"]/episode)
             performance_metrics[model_name]["step"].append(performance_metrics[model_name]["total_step"]/episode)
 
@@ -497,9 +560,10 @@ def train_and_test():
                     total_reward = 0
                     step_count = 0 
                     while True and step_count < max_steps:
+                        state_attacker, state_defender = split_state(state)
                         step_count += 1
-                        attacker_action = agent['attacker'].choose_action(state)
-                        defender_action = random_defender.choose_action(state)
+                        attacker_action = agent['attacker'].choose_action(state_attacker)
+                        defender_action = random_defender.choose_action(state_defender)
 
                         next_state, reward, rreward, done = env.step(attacker_action, defender_action)
 
@@ -517,9 +581,10 @@ def train_and_test():
                     total_reward = 0
                     step_count = 0 
                     while True and step_count < max_steps:
+                        state_attacker, state_defender = split_state(state)
                         step_count += 1
-                        attacker_action = random_attacker.choose_action(state)
-                        defender_action = agent['defender'].choose_action(state)
+                        attacker_action = random_attacker.choose_action(state_attacker)
+                        defender_action = agent['defender'].choose_action(state_defender)
 
                         next_state, reward, rreward, done = env.step(attacker_action, defender_action)
 
@@ -570,9 +635,9 @@ def train_and_test():
         return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
     plt.subplot(3, 2, 3)
     for model_name in performance_metrics.keys():
-        #plt.plot(performance_metrics[model_name]["cpu"], label=f'{model_name} CPU Kullanımı')
-        smoothed_cpu = moving_average(performance_metrics[model_name]["cpu"], window_size=50)
-        plt.plot(smoothed_cpu, label=f'{model_name}', alpha=0.7)
+        plt.plot(performance_metrics[model_name]["cpu"], label=f'{model_name} CPU Kullanımı')
+        #smoothed_cpu = moving_average(performance_metrics[model_name]["cpu"], window_size=50)
+        #plt.plot(smoothed_cpu, label=f'{model_name}', alpha=0.7)
     plt.xlabel('Adım Sayısı')
     plt.ylabel('CPU Yüzdesi (%)')
     plt.title('Model Eğitiminde CPU Kullanımı')
@@ -583,7 +648,7 @@ def train_and_test():
     for model_name in performance_metrics.keys():
         plt.plot(performance_metrics[model_name]["memory"], label=f'{model_name}')
     plt.xlabel('Adım Sayısı')
-    plt.ylabel('RAM Kullanımı (MB)')
+    plt.ylabel('RAM Kullanımı (KB)')
     plt.title('Model Eğitiminde RAM Kullanımı')
     plt.legend()
 
@@ -607,8 +672,11 @@ def train_and_test():
 
     plt.tight_layout()
     # Grafiği kaydet
-    plt.savefig('test8_agent_performance_comparison_LT_5K_v6.png')
+    plt.savefig('test8_agent_performance_comparison_LT_FF_20K_v17.png')
     plt.show()
+    print(performance_metrics)
 
 if __name__ == "__main__":
+    start_time = time.time() 
     train_and_test()
+    print(time.time() - start_time)
