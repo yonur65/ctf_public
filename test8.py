@@ -30,7 +30,7 @@ class CaptureTheFlagEnv:
         return (tuple(self.attacker_pos), tuple(self.defender_pos), tuple(self.flag_pos))
 
     # Ajanları hareket ettir
-    def step(self, attacker_action, defender_action, luck=True):
+    def step(self, attacker_action, defender_action, luck=None):
         prev_attacker_dist = self.get_distance(self.attacker_pos, self.flag_pos)
         prev_defender_dist = self.get_distance(self.defender_pos, self.attacker_pos)
 
@@ -43,15 +43,21 @@ class CaptureTheFlagEnv:
         reward = 0
         rreward = 0
         done = False
+        if luck == 'random-win':
+            attacker_random = True if random.randint(0, 99) == 33 else False
+            defender_random = True if random.randint(0, 99) == 33 else False
+        else:
+            attacker_random = False
+            defender_random = False
 
         # Saldırgan bayrağa ulaştı mı?
-        if self.attacker_pos == self.flag_pos:
+        if self.attacker_pos == self.flag_pos or attacker_random:
             reward = 20  # Ödül
             rreward = -5
             done = True  # Oyun bitti
 
         # Savunmacı saldırganı yakaladı mı?
-        elif self.attacker_pos == self.defender_pos:
+        elif self.attacker_pos == self.defender_pos or defender_random:
             reward = -5  # Ceza
             rreward = 20
             done = True  # Oyun bitti
@@ -68,15 +74,15 @@ class CaptureTheFlagEnv:
         # Savunmacının saldırgana olan mesafesine göre ödül/ceza (tam tersi)
         if curr_defender_dist < prev_defender_dist:
             reward -= 1  # Savunmacı yaklaşıyor, saldırgan için ceza
-            rreward += 4.5
+            rreward += 4.5 # 4.5
         elif curr_defender_dist > prev_defender_dist:
             rreward -= 2
         else:
             rreward -= 1
 
-        if luck:
-            reward += random.randint(0, 4)
-            rreward += random.randint(0, 4)
+        if luck=='random-point':
+            reward += 5 if random.randint(0, 10) == 8 else 0
+            rreward += 5 if random.randint(0, 10) == 8 else 0
 
         return self.get_state(), reward, rreward, done
 
@@ -421,9 +427,13 @@ def get_system_usage():
         "memory_mb": mem_info.rss / (1024 * 1024)  # RSS belleği MB cinsinden alır
     }
 
-def split_state(state, fog=False):
-    if fog:
+def split_state(state, fog=None):
+    if fog == 'target':
+         # Just show their self
         return state[0], state[1]
+    elif fog == 'other':
+        # For attacker hide defander and for defander hide flag
+        return (state[0], state[2]), (state[0],state[1])
     return state, state
 
 # Eğitim ve test fonksiyonu
@@ -433,9 +443,35 @@ def train_and_test():
 
     # Ajan modelleri
     agent_models = {
-        'Q-Learning': {
+        'QL-Normal': {
             'attacker': QLearningAgent(actions),
-            'defender': QLearningAgent(actions)
+            'defender': QLearningAgent(actions),
+            'fog':None,
+            'luck':None,
+        },
+        # 'QL-Luck-Random-Win': {
+        #     'attacker': QLearningAgent(actions),
+        #     'defender': QLearningAgent(actions),
+        #     'fog':None,
+        #     'luck':'random-win',
+        # },
+        # 'QL-Luck-Random-Point': {
+        #     'attacker': QLearningAgent(actions),
+        #     'defender': QLearningAgent(actions),
+        #     'fog':None,
+        #     'luck':'random-point',
+        # },
+        'QL-Fog-Target': {
+            'attacker': QLearningAgent(actions),
+            'defender': QLearningAgent(actions),
+            'fog':'target',
+            'luck':None,
+        },
+        'QL-Fog-Other': {
+            'attacker': QLearningAgent(actions),
+            'defender': QLearningAgent(actions),
+            'fog':'other',
+            'luck':None,
         },
     }
     agent_model2 = {
@@ -493,13 +529,13 @@ def train_and_test():
             ram_total=0
             start_time = time.time()
             while not done and step_count < max_steps:
-                state_attacker, state_defender = split_state(state)
+                state_attacker, state_defender = split_state(state, agent['fog'])
                 step_count += 1
                 # Ajan eylem seçimi
                 attacker_action = attacker_agent.choose_action(state_attacker)
                 defender_action = defender_agent.choose_action(state_defender)  # Aynı modelden defender
 
-                next_state, reward, rreward, done = env.step(attacker_action, defender_action)
+                next_state, reward, rreward, done = env.step(attacker_action, defender_action, agent['luck'])
 
                 if done:
                     next_state_str = 'terminal'
@@ -530,7 +566,7 @@ def train_and_test():
                 ram_total +=usage["memory_mb"]
                 state = next_state
             #total_step_count +=step_count 
-            if model_name == 'Q-Learning':
+            if True or model_name == 'Q-Learning':
                 attacker_agent.update_parameters(episode, total_episodes)
                 defender_agent.update_parameters(episode, total_episodes)
             performance_metrics[model_name]["total_step"] += step_count
@@ -560,12 +596,12 @@ def train_and_test():
                     total_reward = 0
                     step_count = 0 
                     while True and step_count < max_steps:
-                        state_attacker, state_defender = split_state(state)
+                        state_attacker, state_defender = split_state(state, agent['fog'])
                         step_count += 1
                         attacker_action = agent['attacker'].choose_action(state_attacker)
                         defender_action = random_defender.choose_action(state_defender)
 
-                        next_state, reward, rreward, done = env.step(attacker_action, defender_action)
+                        next_state, reward, rreward, done = env.step(attacker_action, defender_action, agent['luck'])
 
                         state = next_state
                         total_reward += reward
@@ -581,12 +617,12 @@ def train_and_test():
                     total_reward = 0
                     step_count = 0 
                     while True and step_count < max_steps:
-                        state_attacker, state_defender = split_state(state)
+                        state_attacker, state_defender = split_state(state, agent['fog'])
                         step_count += 1
                         attacker_action = random_attacker.choose_action(state_attacker)
                         defender_action = agent['defender'].choose_action(state_defender)
 
-                        next_state, reward, rreward, done = env.step(attacker_action, defender_action)
+                        next_state, reward, rreward, done = env.step(attacker_action, defender_action, agent['luck'])
 
                         state = next_state
                         total_reward += rreward
@@ -612,7 +648,7 @@ def train_and_test():
     for model_name in agent_models.keys():
         plt.plot(range(test_interval, total_episodes + 1, test_interval),
                  results[model_name]['trained_attacker'],
-                 label=f'{model_name} Attacker')
+                 label=f'{model_name} ')
     plt.xlabel('Eğitim Bölümü Sayısı')
     plt.ylabel('Ortalama Ödül (Saldırgan)')
     plt.title('Eğitimli Saldırganların Performansı')
@@ -672,7 +708,7 @@ def train_and_test():
 
     plt.tight_layout()
     # Grafiği kaydet
-    plt.savefig('test8_agent_performance_comparison_LT_FF_20K_v17.png')
+    plt.savefig('test8_agent_performance_comparison_AT_20K_v29_e45.png')
     plt.show()
     print(performance_metrics)
 
