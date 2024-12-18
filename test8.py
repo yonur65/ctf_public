@@ -449,6 +449,12 @@ def train_and_test():
             'fog':None,
             'luck':None,
         },
+        'QL-Developed': {
+            'attacker': QLearningAgent(actions),
+            'defender': QLearningAgent(actions),
+            'fog':None,
+            'luck':None,
+        },
         # 'QL-Luck-Random-Win': {
         #     'attacker': QLearningAgent(actions),
         #     'defender': QLearningAgent(actions),
@@ -461,18 +467,18 @@ def train_and_test():
         #     'fog':None,
         #     'luck':'random-point',
         # },
-        'QL-Fog-Target': {
-            'attacker': QLearningAgent(actions),
-            'defender': QLearningAgent(actions),
-            'fog':'target',
-            'luck':None,
-        },
-        'QL-Fog-Other': {
-            'attacker': QLearningAgent(actions),
-            'defender': QLearningAgent(actions),
-            'fog':'other',
-            'luck':None,
-        },
+        # 'QL-Fog-Target': {
+        #     'attacker': QLearningAgent(actions),
+        #     'defender': QLearningAgent(actions),
+        #     'fog':'target',
+        #     'luck':None,
+        # },
+        # 'QL-Fog-Other': {
+        #     'attacker': QLearningAgent(actions),
+        #     'defender': QLearningAgent(actions),
+        #     'fog':'other',
+        #     'luck':None,
+        # },
     }
     agent_model2 = {
         'Q-Learning': {
@@ -566,7 +572,7 @@ def train_and_test():
                 ram_total +=usage["memory_mb"]
                 state = next_state
             #total_step_count +=step_count 
-            if True or model_name == 'Q-Learning':
+            if  model_name == 'QL-Developed':
                 attacker_agent.update_parameters(episode, total_episodes)
                 defender_agent.update_parameters(episode, total_episodes)
             performance_metrics[model_name]["total_step"] += step_count
@@ -708,7 +714,7 @@ def train_and_test():
 
     plt.tight_layout()
     # Grafiği kaydet
-    plt.savefig('test8_agent_performance_comparison_AT_20K_v29_e45.png')
+    plt.savefig('test8_agent_performance_comparison_ql_comp_20K_v30.png')
     plt.show()
     print(performance_metrics)
 
