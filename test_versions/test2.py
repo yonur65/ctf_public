@@ -26,7 +26,7 @@ timesteps_per_game = 1000  # Her oyun için zaman adımı
 
 total_rewards = []
 
-print(env.MAX_STEP)
+#print(env.MAX_STEP)
 
 env.CONTROL_ALL = False
 
@@ -56,6 +56,7 @@ for game in range(1, num_games + 1):
         while not done:
             action, _ = model.predict(obs, deterministic=True)
             obs, reward, _, done, info = env.step(action)
+            env.render()
             episode_reward += reward
         total_reward += episode_reward
     
